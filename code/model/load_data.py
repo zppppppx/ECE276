@@ -12,7 +12,7 @@ def read_data(fname, key):
     return data, ts
 
 
-def gen_quaternion(len):
+def gen_quaternion(len) -> np.array:
     """
     Generate random unit quaternions with len
 
@@ -26,7 +26,7 @@ def gen_quaternion(len):
     quaternions = np.random.rand(len, 4)
     # quaternions = uniform(quaternions)
     quaternions = np.array([*map(uniform, quaternions)])
-    quaternions[0, :] = np.array([1,0,0,0])
+    # quaternions[0, :] = np.array([1,0,0,0])
 
     return quaternions.T
 

@@ -1,8 +1,8 @@
 import jax.numpy as jnp
 import jax
+import numpy as np
 
-
-def conj(p: jnp.array) -> jnp.array:
+def conj(p: np.array) -> np.array:
     """
     Return the conjuagate of the quaternion
 
@@ -15,7 +15,7 @@ def conj(p: jnp.array) -> jnp.array:
     return jnp.concatenate([p[0][None], -p[1:]])
 
 
-def norm(p: jnp.array) -> jnp.array:
+def norm(p: np.array) -> np.array:
     """
     Return the norm of the quaternion
 
@@ -28,7 +28,7 @@ def norm(p: jnp.array) -> jnp.array:
     return jnp.sqrt(p[0]**2 + p[1:].dot(p[1:]))
 
 
-def inv(p: jnp.array) -> jnp.array:
+def inv(p: np.array) -> np.array:
     """
     Return the inverse of the quaternion
 
@@ -41,7 +41,7 @@ def inv(p: jnp.array) -> jnp.array:
     return conj(p)/(norm(p)**2)
 
 
-def mul(q: jnp.array, p: jnp.array) -> jnp.array:
+def mul(q: np.array, p: np.array) -> np.array:
     """
     Calculate the multiplication of two quaternions q and p.
 
@@ -60,7 +60,7 @@ def mul(q: jnp.array, p: jnp.array) -> jnp.array:
     return result
 
 
-def exp(p: jnp.array) -> jnp.array:
+def exp(p: np.array) -> np.array:
     """
     Calculate the exponential of the quaternion
 
@@ -77,7 +77,7 @@ def exp(p: jnp.array) -> jnp.array:
     return jnp.exp(p[0])*val
 
 
-def log(p: jnp.array) -> jnp.array:
+def log(p: np.array) -> np.array:
     """
     Calculate the logarithm of the quaternion
 
@@ -100,8 +100,8 @@ def mulP(params, shift):
     return mul(a, b)*shift
 
 if __name__ == "__main__":
-    a = jnp.ones(4)
-    b = jnp.ones(4)*2
+    a = np.ones(4)
+    b = np.ones(4)*2
 
     print(norm(mul(a, b)), norm(a)*norm(b))
 
