@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 import jax
 import numpy as np
+import transforms3d.quaternions as tq
 
 def conj(p: np.array) -> np.array:
     """
@@ -53,9 +54,11 @@ def mul(q: np.array, p: np.array) -> np.array:
         result: multiplied quarternion
     """
     # result = jnp.zeros(4)
+    # print(q, p)
     pre = q[0]*p[0] - q[1:].dot(p[1:])[None]
     suf = q[0]*p[1:]+p[0]*q[1:] + jnp.cross(q[1:], p[1:])
     result = jnp.concatenate([pre, suf])
+    # print(result)
 
     return result
 
@@ -87,32 +90,36 @@ def log(p: np.array) -> np.array:
     Returns:
         val: the logarithm of the quaternion
     """
+    # print(p)
     p_norm = norm(p)
     pv = p[1:]
-    pv_norm = jnp.sqrt(pv.dot(pv))
+    pv_norm = jnp.sqrt(pv.dot(pv)) + 1e-7
+    # if(pv_norm <= 1e-7):
     val = jnp.concatenate(
         [jnp.log(p_norm)[None], pv/pv_norm*jnp.arccos(p[0]/p_norm)])
+    # else:
+    #     val = jnp.asarray([jnp.log(p[0]), 0, 0, 0])
+    # print(p_norm, pv_norm)
     return val
 
 
-def mulP(params, shift):
-    a, b = params
-    return mul(a, b)*shift
+def gen_quaternion(len) -> np.array:
+    uniform = lambda x : x/np.sqrt(x.dot(x))
+    quaternions = np.random.rand(len, 4)
+    # quaternions = uniform(quaternions)
+    quaternions = np.array([*map(uniform, quaternions)])
+    # quaternions[0, :] = np.array([1,0,0,0])
+
+    return quaternions.T
 
 if __name__ == "__main__":
-    a = np.ones(4)
-    b = np.ones(4)*2
+    qt = gen_quaternion(1).squeeze()
+    print(qt)
+    print("norm:", np.allclose(norm(qt), tq.qnorm(qt)))
+    print("inv:", np.allclose(inv(qt), tq.qinverse(qt)))
+    print("conjugate:", np.allclose(conj(qt), tq.qconjugate(qt)))
+    print("log:", np.allclose(log(qt), tq.qlog(qt)))
+    print("exp:", np.allclose(exp(qt), tq.qexp(qt)))
+    print("mul(qt, inv(qt):", np.allclose(mul(qt, inv(qt)), tq.qmult(qt, tq.qinverse(qt))))
 
-    print(norm(mul(a, b)), norm(a)*norm(b))
-
-    print(exp(a))
-    gr = jax.jacrev(mul)
-    print(gr(a, b))
-
-    params = [a, b]
-
-    grr = jax.jacrev(mulP)
-    print(grr(params, 2))
-
-
-    # print(mul())
+    print("Normal norm: ", np.linalg.norm(np.array([1,2,3,4])))
