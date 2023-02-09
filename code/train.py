@@ -7,7 +7,7 @@ from tqdm import tqdm
 from PIL import Image
 
 
-for i in range(9, 12):
+for i in range(1, 12):
     dataset = str(i)
 
     cfile = "./data/cam/cam" + dataset + ".p"
