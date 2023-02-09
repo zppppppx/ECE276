@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import sys
 from jax import jit
 import transforms3d.quaternions as tq
+from tqdm import tqdm
 sys.path.append("..")
 
 
@@ -26,6 +27,8 @@ def motion(qt: np.array, omega: np.array, interval: np.float32) -> jnp.array:
 
     return f
 
+
+v_motion = jax.vmap(motion, 1, 1)
 
 def loss_motion(qt: np.array, qt_bfr: np.array, omega: np.array, interval: np.float32) -> jnp.float32:
     """
@@ -51,6 +54,20 @@ def loss_motion(qt: np.array, qt_bfr: np.array, omega: np.array, interval: np.fl
     # print("motion", loss)
     return loss
 
+def l_motion(qT, omega, intervals):
+    f0 = motion(np.array([1.,0.,0.,0.]), omega[:, 0], intervals[0, 0])[:, None] # the initial motion model
+    f = v_motion(qT[:, :-1], omega[:, 1:], intervals[:, 1:]) # the following motion model
+    f = jnp.concatenate([f0, f], axis=1)
+
+    log_term = 2 * v_log(v_mul(v_inv(qT), f))
+    # loss = jnp.square(jnp.linalg.norm(log_term, axis=0)) * 0.5
+    loss = jnp.square(v_norm(log_term)) * 0.5
+    loss = jnp.sum(loss)
+
+    return loss
+
+
+
 
 def observ(qt: np.array) -> jnp.array:
     """
@@ -63,10 +80,12 @@ def observ(qt: np.array) -> jnp.array:
     Returns:
         h: obeservation model.
     """
-    g = np.array([0, 0, 0, 1])
+    g = np.array([0., 0., 0., 1.])
     h = mul(mul(inv(qt), g), qt)
 
     return h
+
+v_observ = jax.vmap(observ, 1, 1)
 
 
 def loss_observ(qt: np.array, at: np.array) -> jnp.array:
@@ -85,6 +104,18 @@ def loss_observ(qt: np.array, at: np.array) -> jnp.array:
     loss = jnp.square(jnp.linalg.norm(at-ht)) * 0.5
 
     # print("obs", loss)
+    return loss
+
+
+def l_observ(qT, at):
+    prefix = jnp.zeros([1, qT.shape[-1]])
+    at = np.concatenate([prefix, at], axis=0) # translate the acceleration to quaternion space
+    hT = v_observ(qT)
+
+    loss = jnp.square(jnp.linalg.norm(at-hT, axis=0)) * 0.5
+    # print(loss.shape)
+    loss = jnp.sum(loss)
+
     return loss
 
 
@@ -115,40 +146,21 @@ def get_cost(qT: np.array, imuData: np.array, ts: np.array) -> jnp.float32:
     imuData = jnp.asarray(imuData)
     ts = jnp.asarray(ts)
 
-    q0 = jnp.array([1, 0, 0, 0])[:, None]
-    q_all = jnp.concatenate([q0, qT], axis=1)
-
-    # intervals = ts[0, 1:] - ts[0, :-1]
-    # intervals = intervals[None, :]
     intervals = ts
-    # print(intervals)
-    # print(ts)
 
+    cost_motion = l_motion(qT, imuData[3:, :-1], intervals) * 10
+    cost_observ = l_observ(qT, imuData[:3, :-1])
 
-    # a = v_loss_motion(q_all[:, 1:], q_all[:, :-1], imuData[3:, 1:], intervals)
-    # b = v_loss_observ(qT, imuData[:3, 1:])
-    # print(a)
-    # print(b)
-    cost_motion = v_loss_motion(q_all[:, 1:], q_all[:, :-1], imuData[3:, 1:], intervals)
-    cost_observ = v_loss_observ(qT, imuData[:3, 1:])
-    # print(cost_motion, cost_observ)
-    cost_motion = jnp.sum(cost_motion)
-    cost_observ = jnp.sum(cost_observ)
-    # print(cost_motion, cost_observ)
 
     cost = cost_motion + cost_observ
 
-    # print(cost_motion, cost_observ)
-
     return cost
-
 
 cost_descent = jax.jacrev(get_cost)
 
 
 def get_cost_phi(phi: np.array, qT: np.array, nk: np.array, imuData: np.array, ts: np.array) -> np.float32:
     q_tmp = qT*jnp.cos(phi) + nk*jnp.sin(phi)
-    # print(q_tmp, phi, nk)
     
     return get_cost(q_tmp, imuData, ts)
 
@@ -186,7 +198,7 @@ def init_qT(omega: np.array, ts: np.array) -> np.array:
     Returns:
         qT: the quaternion array that need to be optimized (the initial state is not included)
     """
-    qT = np.array([1,0,0,0])[:, None]
+    qT = np.array([1,0,0,0], dtype=np.float32)[:, None]
     T = ts.size - 1
     
     for i in range(T):
@@ -194,29 +206,3 @@ def init_qT(omega: np.array, ts: np.array) -> np.array:
         qT = np.concatenate([qT, qt], axis=1)
 
     return qT[:, 1:]
-    
-
-def optimize(qT, imuData, intervals, Config):
-    T = qT.shape[-1]
-    q_all = jnp.concatenate([jnp.array([1,0,0,0])[:, None], qT], axis=1)
-
-    qT_new = np.ones_like(qT)
-
-    for epoch in range(Config.epoch):
-        cost = 0.
-        # for i in range(T):
-        #     cost += loss_motion(q_all[:, i+1], q_all[:, i], imuData[3:, i+1], intervals[0, i])
-        #     cost += loss_observ(q_all[:, i+1], imuData[:3, i+1])
-        cost = get_cost(qT, imuData, intervals)
-
-        print("Loss of epoch {} is {}".format(epoch, cost))
-
-        for i in range(T):
-            grad = gr_motion(q_all[:, i+1], q_all[:, i], imuData[3:, i+1], intervals[0, i])
-            grad += gr_observ(q_all[:, i+1], imuData[:3, i+1])
-
-            qT_new[:, i] = qT[:, i] - Config.step_qt * grad
-            qT_new[:, i] /= np.linalg.norm(qT_new[:, i])
-
-        
-    return qT_new

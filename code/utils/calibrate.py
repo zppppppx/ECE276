@@ -12,6 +12,55 @@ class Config:
     scale_factor_accer = Vref/max_index/sensitivity_accer
 
 
+def rot2quat(rot: np.array):
+    """
+    Find the corresponding three euler angles according to the rotation matrix
+
+    Args:
+        rot: rotation matrix
+        axes: rotation matrix transformation method
+
+    Returns
+        x: the angle of roll
+        y: the angle of pitch
+        z: the angle of yaw
+    """
+    T = rot.shape[-1]
+    # qT = np.array([])
+    for i in range(T):
+        q = t3d.quaternions.mat2quat(rot[:, :, i])
+        if(i == 0):
+            qT = q[:, None]
+        else:
+            qT = np.concatenate([qT, q[:, None]], axis=1)
+
+    return qT
+
+def quat2rot(qT: np.array):
+    """
+    Find the corresponding three euler angles according to the rotation matrix
+
+    Args:
+        rot: rotation matrix
+        axes: rotation matrix transformation method
+
+    Returns
+        x: the angle of roll
+        y: the angle of pitch
+        z: the angle of yaw
+    """
+    T = qT.shape[-1]
+    # qT = np.array([])
+    for i in range(T):
+        rot = t3d.quaternions.quat2mat(qT[:, i])
+        if(i == 0):
+            rots = rot[:, :, None]
+        else:
+            # qT = np.concatenate([qT, q[:, None]], axis=1)
+            rots = np.concatenate([rots, rot[:, :, None]], axis=2)
+
+    return rots
+
 def rot2euler(rot: np.array, axes: str = 'sxyz'):
     """
     Find the corresponding three euler angles according to the rotation matrix
@@ -36,7 +85,7 @@ def rot2euler(rot: np.array, axes: str = 'sxyz'):
     return x, y, z
 
 
-def quat2euler(qT: np.array, axes: str = 'sxyz') -> tuple[np.array, np.array, np.array]:
+def quat2euler(qT: np.array, axes: str = 'sxyz', expand: bool = True) -> tuple[np.array, np.array, np.array]:
     """
     Find the corresponding three euler angles according to the quaternion matrix
 
@@ -49,7 +98,8 @@ def quat2euler(qT: np.array, axes: str = 'sxyz') -> tuple[np.array, np.array, np
         y: the angle of pitch
         z: the angle of yaw
     """
-    qT = np.concatenate([np.array([1,0,0,0])[:,None], qT], axis=1)
+    if(expand):
+        qT = np.concatenate([np.array([1,0,0,0])[:,None], qT], axis=1)
     T = qT.shape[-1]
     x, y, z = np.array([]), np.array([]), np.array([])
     for i in range(T):
@@ -87,6 +137,25 @@ def findBias(eulers: list, imuData: np.array, threshold: np.float32) -> np.array
     return bias
 
 
+def estBias(imuData: np.array, frame: tuple[int, int] = (0, 200)) -> np.array:
+    """
+    If there is no vicon data, we need to calibrate the data directly through utilizing the
+    IMU data of the first few frames.
+
+    Args:
+        imuData: imu measurements
+        frame: the beginning and ending of the frame used to generate bias
+
+    Returns:
+        bias: 6 x batch sized bias to calibrate the imu data
+    """
+    bias = imuData[:, frame[0]:frame[1]]
+    bias = np.average(bias, axis=1)
+
+    return bias
+
+
+
 def calibrate(imuData: np.array, bias: np.array) -> np.array:
     """
     Calibrate the imu data according to fetched bias
@@ -101,7 +170,7 @@ def calibrate(imuData: np.array, bias: np.array) -> np.array:
     
 
     bias[2] -= 1. / Config.scale_factor_accer
-    print(bias)
+
     imuData -= bias[:, None]
 
     imuData[:3] *= Config.scale_factor_accer
