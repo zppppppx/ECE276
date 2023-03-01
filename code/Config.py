@@ -11,7 +11,7 @@ outer_width = 0.47625 # the width between the outer surface of two parallel whee
 inner_width = 0.31115 # the width between the innner surface of two parallel wheels
 L = (outer_width + inner_width) / 2 # the length of axle
 
-N = 10 # the number of the particles
+N = 20 # the number of the particles
 Neff_threshold = 0.2 * N
 
 # the standard deviation of the norm distribution for velocity and angular velocity
