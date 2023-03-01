@@ -10,7 +10,7 @@ class Particle:
     This is the class describing the action of particles
     """
 
-    def __init__(self, position, rot, weight) -> None:
+    def __init__(self, position: np.array, rot: np.array, weight: np.float32) -> None:
         # initialize the position and rotation matrix of the particle
         self.position = position
         self.rot = rot
@@ -30,6 +30,9 @@ class Particle:
             W: the angular velocities
             W_time_stamps: corresponding angular velocities' timestamps
         """
+        # print("velocity\t", V_body)
+        # print("postion\t", self.position)
+        # print("time\t", V_time_stamps[1] - V_time_stamps[0])
         V_start_time = V_time_stamps[0]
         V_end_time = V_time_stamps[1]
 
@@ -50,7 +53,9 @@ class Particle:
         V_time_intervals = np.where(V_time_intervals < 0, 0, V_time_intervals)
         for i in range(V_time_intervals.size):
             V = rots[:, :, i].dot(V_body)
-            self.position += V * V_time_intervals[i]
+            interval = V * V_time_intervals[i]
+            # print(interval)
+            self.position += interval
 
     def update(self, occupancy_map: np.array, ranges: np.array, lidar_coordinates: np.array):
         """

@@ -55,7 +55,7 @@ class SLAM:
 
         self.align_lidar_and_encoder()
 
-        self.particles = [Particle(np.array([0, 0, 0], dtype=np.float32), 
+        self.particles = [Particle(np.array([0, 0, 0], dtype=np.float32),
                                    np.diag([1, 1, 1]).astype(np.float32), 1/N) for i in range(N)]
 
     def __load_lidar(self, Hokuyo_Path):
@@ -78,9 +78,9 @@ class SLAM:
 
         # Drop the invalid items
         self.lidar_ranges = np.where(
-            self.lidar_ranges < self.lidar_range_min, np.nan, self.lidar_ranges)
+            self.lidar_ranges <= self.lidar_range_min, np.nan, self.lidar_ranges)
         self.lidar_ranges = np.where(
-            self.lidar_ranges > self.lidar_range_max, np.nan, self.lidar_ranges)
+            self.lidar_ranges >= self.lidar_range_max, np.nan, self.lidar_ranges)
 
         self.get_coordinates()
 
@@ -321,21 +321,26 @@ class SLAM:
         Returns:
             occupancy_map: a numpy array
         """
-        pos_mobile = particle.position / grid_scale
-        rot = particle.rot
-        lcw = rot.dot(lidar_coordinates) + pos_mobile.reshape([3, -1]) # transform to world frame
-        lcw = lcw[~np.isnan(lcw)].reshape([3, -1]) / grid_scale # drop the invalid items 
+        pos_mobile = particle.position.copy()
+        rot = particle.rot.copy()
+        lc = lidar_coordinates.copy()
+        # print(~np.isnan(lc).any(axis=0))
+        lc = lc[~np.isnan(lc)].reshape([3, -1]) # drop the invalid items
+        # lc = lc[:, ~np.isnan(lc).any(axis=0)] 
+        # print(lc.shape)
+        lcw = rot.dot(lc) + pos_mobile.reshape([3, -1])  # transform to world frame
+        # transform to grid-scaled representation
+        pos_mobile /= grid_scale
+        lcw /= grid_scale
 
-        coordinates = np.concatenate(
-            [pos_mobile.reshape([3, -1]), lcw.reshape([3, -1])], axis=1)
+        coordinates = np.concatenate([pos_mobile.reshape([3, -1]), lcw.reshape([3, -1])], axis=1)
         new_ranges = self.get_grid_range(coordinates)
         old_ranges = self.ranges.copy()
 
         # new range should be the full union in rectangle space of the two rectangles
         self.ranges = np.array([[np.min([old_ranges[0][0], new_ranges[0][0]]), np.max([old_ranges[0][1], new_ranges[0][1]])],
                                 [np.min([old_ranges[1][0], new_ranges[1][0]]), np.max([old_ranges[1][1], new_ranges[1][1]])]])
-
-        # old_map = self.occupancy_map.copy()
+        # print(np.max(np.max(pos_mobile)), np.max(np.max(lcw)), np.min(np.min(pos_mobile)), np.min(np.min(lcw)))
         old_occupancy_odds = self.occupancy_odds.copy()
 
         x_shift = old_ranges[0][0] - self.ranges[0][0]
@@ -346,10 +351,10 @@ class SLAM:
 
         # create a new map with the new range and shift the old map to appropriate position
         self.occupancy_odds = np.zeros([self.ranges[0][1] - self.ranges[0][0] + 1,
-                                      self.ranges[1][1] - self.ranges[1][0] + 1], dtype=np.float32)
+                                        self.ranges[1][1] - self.ranges[1][0] + 1], dtype=np.float32)
         self.occupancy_odds[x_shift:(x_shift+x_range),
-                           y_shift:(y_shift+y_range)] = old_occupancy_odds
-        self.occupancy_map = np.ones_like(self.occupancy_odds) * 0.5 # 0.5 as the unsearched area
+                            y_shift:(y_shift+y_range)] = old_occupancy_odds
+        self.occupancy_map = np.ones_like(self.occupancy_odds, dtype=np.float32)
 
         # TODO: need to implement the way to sample the occupied or free cells
         # these three variables are the number of corresponding cells
@@ -359,18 +364,50 @@ class SLAM:
         # loop over all the valid lasers and count the number of the free cells and occupied cells
         n_lidar_points = lcw.shape[-1]
         for j in range(n_lidar_points):
-            line = bresenham2D(
-                pos_mobile[0], pos_mobile[1], lcw[0, j], lcw[1, j])
+            line = bresenham2D(pos_mobile[0], pos_mobile[1], lcw[0, j], lcw[1, j])
             free_cells[line[0, :-1] - self.ranges[0][0],
-                        line[1, :-1] - self.ranges[1][0]] += 1
+                       line[1, :-1] - self.ranges[1][0]] += 1
             occupied_cells[line[0, -1] - self.ranges[0]
-                            [0], line[1, -1] - self.ranges[1][0]] += 1
+                           [0], line[1, -1] - self.ranges[1][0]] += 1
+            
+        # print(free_cells)
 
         self.occupancy_odds[np.where(occupied_cells > free_cells)] += np.log(4)
         self.occupancy_odds[np.where((occupied_cells == free_cells) & (occupied_cells != 0))] += np.log(2)
         self.occupancy_odds[np.where(occupied_cells < free_cells)] -= np.log(4)
 
         self.occupancy_map[np.where(self.occupancy_odds >= 0)] = 1
+        self.occupancy_map[np.where(self.occupancy_odds < 0)] = 0
+
+    def dead_reckoning(self):
+        # just use one particle
+        particle = Particle(np.array([0, 0, 0], dtype=np.float32), np.diag([1,1,1]).astype(np.float32), 1)
+        w_time_start = 0
+        w_time_end = 0
+        T_imu = self.imu_stamps.size
+
+        T_speed = self.encoder_stamps.size
+        # positions = np.array
+
+        for i in tqdm(range(T_speed-1)):
+        # for i in tqdm(range(500)):
+            w_time_start = w_time_end
+            while(w_time_end + 1 < T_imu and self.imu_stamps[w_time_end+1] <= self.encoder_stamps[i+1]):
+                w_time_end += 1
+
+            V_body = self.V_body[:, i]
+            V_time_stamps = self.encoder_stamps[i:i+2]
+            W = self.imu_angular_velocity[:, w_time_start:w_time_end+1]
+            W_time_stamps = self.imu_stamps[w_time_start:w_time_end+1]
+
+            particle.predict(V_body, V_time_stamps, W, W_time_stamps)
+            # if i > 395 and i < 400:
+            #     print(particle.position, np.nanmax(np.nanmax(self.lidar_coordinates_aligned[:2, :, i])), np.nanmin(np.nanmin(self.lidar_coordinates_aligned[:2, :, i])))
+            #     print(V_body, W)
+            slam.renew_occupancy(particle, self.lidar_coordinates_aligned[:, :, i])
+
+
+
 
     def update(self, occupancy_map, ranges, lidar_coordinates):
         """
@@ -387,10 +424,9 @@ class SLAM:
         weights = np.array([self.particles[i].weight for i in range(N)])
         weights_sum = np.sum(weights)
         for i in range(N):
-             self.particles[i].weight /= weights_sum # normalization
+            self.particles[i].weight /= weights_sum  # normalization
 
         return np.argmax(weights)
-
 
     def checkAndResample(self):
         """
@@ -398,6 +434,7 @@ class SLAM:
         """
         weights = np.array([self.particles[i].weight for i in range(N)])
         Neff = 1 / np.sum(weights**2)
+        # print(Neff)
         if (Neff < Neff_threshold):
             j, c = 0, weights[0]
             for k in range(N):
@@ -406,14 +443,11 @@ class SLAM:
                 while (beta > c):
                     j += 1
                     c += weights[j]
-                self.particles[k] = Particle(self.particles[k].position, self.particles[k].rot, 1/N)
+                self.particles[k] = Particle(
+                    self.particles[k].position, self.particles[k].rot, 1/N)
         else:
             return
 
-    
-
-    
-        
 
 if __name__ == "__main__":
     dataset = 20
@@ -442,12 +476,12 @@ if __name__ == "__main__":
     # plot_trajectory(slam, 5)
     # input()
 
-    plot_particle_trajectory(slam)
+    # plot_particle_trajectory(slam)
 
     # slam.renew_occupancy(slam.particles[0], slam.lidar_coordinates_aligned[:, :, 0])
-    # print(slam.ranges)
-    # plt.imshow(slam.occupancy_map)
-    # plt.show()
+    slam.dead_reckoning()
+    plt.imshow(slam.occupancy_map)
+    plt.show()
     # for i in range(N):
     #     print(slam.particles[i].weight)
     # slam.update(slam.occupancy_map, slam.ranges, slam.lidar_coordinates[:, :, 0])
