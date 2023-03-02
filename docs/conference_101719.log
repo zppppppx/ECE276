@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999994 (TeX Live 2022) (preloaded format=xelatex 2022.9.17)  1 MAR 2023 18:29
+This is XeTeX, Version 3.141592653-2.6-0.999994 (TeX Live 2022) (preloaded format=xelatex 2022.9.17)  1 MAR 2023 21:12
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -388,15 +388,15 @@ LaTeX Font Warning: Font shape `TU/ptm/m/sc' undefined
 ]
 
 LaTeX Font Warning: Font shape `TU/ptm/b/n' undefined
-(Font)              using `TU/ptm/bx/n' instead on input line 200.
+(Font)              using `TU/ptm/bx/n' instead on input line 201.
 
 
 LaTeX Font Warning: Font shape `TU/ptm/b/n' undefined
-(Font)              using `TU/ptm/bx/n' instead on input line 205.
+(Font)              using `TU/ptm/bx/n' instead on input line 206.
 
 
 LaTeX Font Warning: Font shape `TU/ptm/b/n' undefined
-(Font)              using `TU/ptm/bx/n' instead on input line 208.
+(Font)              using `TU/ptm/bx/n' instead on input line 209.
 
 
 ** Conference Paper **
@@ -417,7 +417,7 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 Here is how much of TeX's memory you used:
  4663 strings out of 475748
  76408 string characters out of 5799183
- 444648 words of memory out of 5000000
+ 443648 words of memory out of 5000000
  25794 multiletter control sequences out of 15000+600000
  480652 words of font info for 83 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191

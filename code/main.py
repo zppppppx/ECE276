@@ -73,3 +73,7 @@ for dataset in [20, 21]:
     # plt.show()
 
     # input()
+
+    np.savez('./results/d%d_N%d.npz'%(dataset, N), 
+            oc_map=slam.occupancy_map, map_ranges=slam.ranges, trajectory=positions, grid_scale=grid_scale)
+    

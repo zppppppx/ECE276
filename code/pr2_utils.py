@@ -2,6 +2,7 @@ import time
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import matplotlib.pyplot as plt
+import numba
 plt.ion()
 
 
@@ -75,6 +76,7 @@ def mapCorrelation(im, grid_scale, ranges, vp, xs, ys):
             cpr[jx, jy] = np.sum(im[ix[valid], iy[valid]])
     return cpr
 
+
 def bresenham2D(sx, sy, ex, ey):
     '''
     Bresenham's ray tracing algorithm in 2D.
@@ -116,6 +118,18 @@ def bresenham2D(sx, sy, ex, ey):
         else:
             y = sy - np.cumsum(q)
     return np.vstack((x, y)).astype(np.int32)
+
+
+def bresenham2D_loop(pos_mobile, lcw):
+    fr, ob = np.zeros([2, 1]), np.zeros([2, 1])
+    for i in range(lcw.shape[-1]):
+        line = bresenham2D(pos_mobile[0], pos_mobile[1], lcw[0, i], lcw[1, i])
+        free = line[:, :-1].reshape([2, -1])
+        obs = line[:, -1].reshape([2, 1])
+        fr = np.concatenate([fr, free], axis=1)
+        ob = np.concatenate([ob, obs], axis=1)
+
+    return fr[:, 1:], ob[:, 1:]
 
 
 def test_bresenham2D():
@@ -245,6 +259,17 @@ def show_lidar():
     ax.set_title("Lidar scan data", va='bottom')
     plt.show()
 
+@numba.jit()
+def count_occupancy(lcw, ranges, pos_mobile, free_cells, occupied_cells):
+    n_lidar_points = lcw.shape[-1]
+    for j in range(n_lidar_points):
+        line = bresenham2D(pos_mobile[0], pos_mobile[1], lcw[0, j], lcw[1, j])
+        free_cells[line[0, :-1] - ranges[0][0],
+                    line[1, :-1] - ranges[1][0]] += 1
+        occupied_cells[line[0, -1] - ranges[0]
+                        [0], line[1, -1] - ranges[1][0]] += 1
+        
+    return free_cells, occupied_cells
 
 if __name__ == '__main__':
     show_lidar()

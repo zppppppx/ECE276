@@ -90,124 +90,17 @@ represent a finite number of the possible states. Thus, we could rewrite the pre
     \\ &\delta\left(\boldsymbol{x}_{t+1}-\boldsymbol{\mu}_{t+1 \mid t}[k]\right),
     \end{aligned}
 \end{equation}
-where $\boldsymbol{\mu}[k]$ denotes the state of the $k$-th robot at time $t$ and $\alpha[k]$ the probability.
+where $\boldsymbol{\mu}[k]$ denotes the state of the $k$-th robot at time $t$ and $\alpha[k]$ the probability. In the predicting step, the
+weights of the particles remain unchanged and in the updating step, the states of the particles remain unchanged.
+
+\subsection{Texture Map}
+
 
 \section{Technical Approach}
 \subsection{Orientation Tracking}
-Since it is nearly not possible to find the closed solution to the problem, we adopt gradient descent to optimize the
-quaternions step by step.
 
-\textit{Optimization}:
-For any quaternion $\boldsymbol{q}_t, \forall t \in [1, T]$, the optimization from step $k$ to $k+1$ could be formulated as:
-\begin{equation}
-    \begin{aligned}
-        \boldsymbol{q}_t^{k+1} & = \boldsymbol{q}_t^{k} - \alpha \frac{\partial c(\boldsymbol{q}_{1:T})}
-        {\partial \boldsymbol{q}_t^{k}} , \forall t \in [1, T]
-    \end{aligned}
-\end{equation}
-
-However, if adopting this approach alone would lead to invalid quaternions ($\boldsymbol{q}_t \notin \mathbb{H}_*$). Thus, we need
-validation step to modify the optimization step, in order to satisfy the constraint.
-
-\textit{Validation}
-There are two ways to achieve optimization validation. One is to directly adopt normalization, which is:
-\begin{equation}
-    \boldsymbol{q}_t^{k+1} = \frac{\boldsymbol{q}_t^{k} - \alpha \frac{\partial c(\boldsymbol{q}_{1:T})}
-    {\partial \boldsymbol{q}_t^{k}}}{||\boldsymbol{q}_t^{k} - \alpha \frac{\partial c(\boldsymbol{q}_{1:T})}
-    {\partial \boldsymbol{q}_t^{k}}||_2}.
-\end{equation}
-This approach mainly has two disadvantages, one is that $||\boldsymbol{q}_t^{k} - \alpha \frac{\partial c(\boldsymbol{q}_{1:T})}
-    {\partial \boldsymbol{q}_t^{k}}||_2$ may equal to $0$, leading to sigularity.
-The other is that the process could only cover part of the solution space,
-losing possible solutions. Therefore, we have another approach, which is to project the gradient calculated in every optimization
-step to tangent space and normalize the result. And then use the projection and the previous value to renew the $\boldsymbol{q}_t$:
-\begin{equation}
-    \boldsymbol{g}_t^k = \frac{\partial c(\boldsymbol{q}_{1:T})}{\partial \boldsymbol{q}_t^{k}},
-\end{equation}
-\begin{equation}
-    \boldsymbol{h}_t^k = \boldsymbol{g}_t^k - (\boldsymbol{g}_t^k \cdot \boldsymbol{q}_t^k)\boldsymbol{q}_t^k,
-\end{equation}
-\begin{equation}
-    \boldsymbol{n}_t^k = \boldsymbol{h}_t^k / ||\boldsymbol{h}_t^k||_2,
-\end{equation}
-\begin{equation}
-    \boldsymbol{q}_t^{k+1} = \boldsymbol{q}_t^k\cos\phi_t^k + \boldsymbol{n}_t^k\sin\phi_t^k,
-\end{equation}
-where we need to optimize $\phi_t^k$ by adopting linear gradient search. In practice, we combine two methods to optimize $\boldsymbol{q}_t$,
-which is to first use projection-based optimization in first few epochs and adopt normalization-based optimization in the last
-few epochs.
 
 \subsection{Panorama Generation}
-To generate the panorama, the first step is to get the spherical coordinates in the camera frame for each pixel. The assumption
-is that the pixels of the picture lies on a unit sphere. Given that the camera has a horizontal and vertical field of view with
-angles $\frac{\pi}{3}$ and $\frac{\pi}{4}$ respectively, the azimuth angle $\phi$ and inclination $\theta$ of each pixel lies in
-the range $-\frac{\pi}{6} \leq \phi \leq \frac{\pi}{6}$ and $\frac{3\pi}{8} \leq \theta \leq \frac{5\pi}{8}$. Then for a specific
-pixel at $i$-th row and $j$-th column, the spherical coordinate should be defined as:
-\begin{equation}
-    r = 1
-\end{equation}
-
-\begin{equation}
-    \phi = \frac{\pi}{6} - \frac{j}{\#cols} \frac{\pi}{3}
-\end{equation}
-
-\begin{equation}
-    \theta = \frac{3\pi}{8} + \frac{i}{\#rows} \frac{\pi}{4}
-\end{equation}
-
-Then we convert the spherical coordinate to Cartesian coordinate by using the following formulae:
-\begin{equation}
-    x_{i, j} = \cos(\phi_{i, j})\sin(\theta_{i, j})
-\end{equation}
-\begin{equation}
-    y_{i, j} = \sin(\phi_{i, j})\sin(\theta_{i, j})
-\end{equation}
-\begin{equation}
-    z_{i, j} = \cos(\theta_{i, j})
-\end{equation}
-
-Notice that for every picture, the coordinate of a pixel at position $(i, j)$ is the same. We could
-use a tensor to represent the coordinates of the picture take at time $t$ in the camera frame as:
-$P_{t, c} \in \mathbb{R}^{r \times c \times 3}$.
-Thus, given the rotation matrix $R_t$ and translation vector $\boldsymbol{p}_t$, we could convert the coordinates to
-world frame as:
-\begin{equation}
-    P_{t, w}^T = R_t \times P_{t, c}^T + \boldsymbol{p}_t
-\end{equation}
-
-As long as the Cartesian coordinates of the pixels have been obtained, we could then obtain the spherical
-coordinates in the world frame using:
-
-\begin{equation}
-    \phi_w = \arctan\frac{y_w}{x_w}
-\end{equation}
-\begin{equation}
-    \theta_w = \arccos z_w
-\end{equation}
-
-Then we project the spherical coordinates to cylindrical coordinates by assigning the spherical azimuth to cylinder height
-and inclination along the circumference. Thus for one pixel with the spherical coordinates as $(1, \theta, \phi)$, its position
-in the panorama (interpreted as $(i_p, j_p)$-indexed) could be calculated as:
-\begin{equation}
-    i_p = \frac{\theta_w}{\pi} \#rows_p,
-\end{equation}
-\begin{equation}
-    j_p = \frac{\phi_w + \pi}{2\pi} \#cols_p,
-\end{equation}
-in which we interpret the pixels with spherical coordinates $(1, 0, \phi)$ as the center line.
-
-\subsection{Some More Details}
-\textbf{The initialization of $\boldsymbol{q}_T$}: considering the fact that $\boldsymbol{q}_T$ is initialized using
-motion model, the loss related to motion model is very small at first, and the gradient could become NAN. Thus, when
-initializing $\boldsymbol{q}_T$, we added a small noise to it in order to make it bias from original value, so that
-NAN would not appear at the start and could better train the model.
-
-\textbf{Training}: when training the model, though we added a noise to $\boldsymbol{q}_T$ in initialization, the loss of
-the motion model is still very small. To balance the two loss a little bit, we multiplied the motion loss by 10.
-
-\textbf{Panorama}: when generating panorama, we changed the shape of the coordinates to $[3 \times (r \times c)]$ for
-acceleration of the calculation.
-
 
 \section{Results}
 \subsection{Orientation Tracking}

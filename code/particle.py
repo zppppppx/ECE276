@@ -66,12 +66,27 @@ class Particle:
             ranges: the range of the grid-scaled map
             lidar_coordinates: the data obtained from the lidar scan, in the lidar frame
         """
-        xs = self.position.reshape([3, -1])[0, :]
-        ys = self.position.reshape([3, -1])[1, :]
+        xs = self.position.copy().reshape([3, -1])[0, :]
+        ys = self.position.copy().reshape([3, -1])[1, :]
+
+        ar = np.arange(-grid_mid, grid_mid+1) * grid_scale
+        xs = xs + ar
+        ys = ys + ar
+        # print(ar)
+
         lc = lidar_coordinates.copy()
         lc = self.rot.dot(lc) # rotate to standard representation
         cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
-        self.weight *= cpr[0,0]
+        # self.weight *= cpr[0,0]
+        
+        max_cpr = np.max(cpr)
+        self.weight *= max_cpr
+        x_shift, y_shift = np.where(cpr == max_cpr)
+        # shift the particle's position to the maximum point
+        self.position[0] += (x_shift[0]-grid_mid)*grid_scale
+        self.position[1] += (y_shift[0]-grid_mid)*grid_scale
+
+        # print(self.position)
 
 if __name__ == "__main__":
     a = Particle()

@@ -7,7 +7,6 @@ from particle import Particle
 from utils import *
 from tqdm import tqdm
 
-
 class SLAM:
     """
     A class describing the process of SLAM
@@ -113,7 +112,7 @@ class SLAM:
         multi = np.tile(multi, [1, 1, stamp_num])
 
         self.lidar_ranges = self.lidar_ranges[None, :]
-        self.lidar_coordinates = self.lidar_ranges * multi
+        self.lidar_coordinates = self.lidar_ranges * multi + lidar_coor_body.reshape([3, 1, 1])
 
     def __load_encoders(self, Encoder_Path):
         """
@@ -341,20 +340,22 @@ class SLAM:
         self.ranges = np.array([[np.min([old_ranges[0][0], new_ranges[0][0]]), np.max([old_ranges[0][1], new_ranges[0][1]])],
                                 [np.min([old_ranges[1][0], new_ranges[1][0]]), np.max([old_ranges[1][1], new_ranges[1][1]])]])
         # print(np.max(np.max(pos_mobile)), np.max(np.max(lcw)), np.min(np.min(pos_mobile)), np.min(np.min(lcw)))
-        old_occupancy_odds = self.occupancy_odds.copy()
+        if self.ranges[0,0] < old_ranges[0,0] or self.ranges[0,1] > old_ranges[0,1] or self.ranges[1,0] < old_ranges[1,0] \
+            or self.ranges[1, 1] > old_ranges[1, 1]:
+            old_occupancy_odds = self.occupancy_odds.copy()
 
-        x_shift = old_ranges[0][0] - self.ranges[0][0]
-        x_range = old_ranges[0][1] - old_ranges[0][0] + 1
+            x_shift = old_ranges[0][0] - self.ranges[0][0]
+            x_range = old_ranges[0][1] - old_ranges[0][0] + 1
 
-        y_shift = old_ranges[1][0] - self.ranges[1][0]
-        y_range = old_ranges[1][1] - old_ranges[1][0] + 1
+            y_shift = old_ranges[1][0] - self.ranges[1][0]
+            y_range = old_ranges[1][1] - old_ranges[1][0] + 1
 
-        # create a new map with the new range and shift the old map to appropriate position
-        self.occupancy_odds = np.zeros([self.ranges[0][1] - self.ranges[0][0] + 1,
-                                        self.ranges[1][1] - self.ranges[1][0] + 1], dtype=np.float32)
-        self.occupancy_odds[x_shift:(x_shift+x_range),
-                            y_shift:(y_shift+y_range)] = old_occupancy_odds
-        self.occupancy_map = np.ones_like(self.occupancy_odds, dtype=np.float32)
+            # create a new map with the new range and shift the old map to appropriate position
+            self.occupancy_odds = np.zeros([self.ranges[0][1] - self.ranges[0][0] + 1,
+                                            self.ranges[1][1] - self.ranges[1][0] + 1], dtype=np.float32)
+            self.occupancy_odds[x_shift:(x_shift+x_range),
+                                y_shift:(y_shift+y_range)] = old_occupancy_odds
+            self.occupancy_map = np.ones_like(self.occupancy_odds, dtype=np.float32)
 
         # TODO: need to implement the way to sample the occupied or free cells
         # these three variables are the number of corresponding cells
@@ -369,12 +370,8 @@ class SLAM:
                        line[1, :-1] - self.ranges[1][0]] += 1
             occupied_cells[line[0, -1] - self.ranges[0]
                            [0], line[1, -1] - self.ranges[1][0]] += 1
-            
-        # print(free_cells)
 
-        # self.occupancy_odds[np.where(occupied_cells > free_cells)] += np.log(4)
-        # self.occupancy_odds[np.where((occupied_cells == free_cells) & (occupied_cells != 0))] += np.log(2)
-        # self.occupancy_odds[np.where(occupied_cells < free_cells)] -= np.log(4)
+
         self.occupancy_odds += 2*np.log(4)*occupied_cells
         self.occupancy_odds -= np.log(4)*free_cells
 
