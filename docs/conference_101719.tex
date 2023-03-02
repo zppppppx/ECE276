@@ -97,10 +97,44 @@ weights of the particles remain unchanged and in the updating step, the states o
 
 
 \section{Technical Approach}
-\subsection{Orientation Tracking}
+\subsection{Predict}
+Since during the predicting, the weight of the particle remains still, this step simply changes to use motion model 
+$\boldsymbol{x}_{t+1} = f(\boldsymbol{x}_{t}, \boldsymbol{u}_{t}, \boldsymbol{w}_{t})$ to estimate the 
+state of next timestamp, where $\boldsymbol{w}_{t}$ denotes the input noise. Considering that the IMU data and encoder
+data are seprately collected, we also need to compute them seprately and combine them by aligning the timestamps. Knowing
+that the IMU collects data more frequently, we choose the encoder's timestamps as the base timeline. To estimate the 
+pose along encoder timestamps, I adopted a metric to choose the best-match time interval of IMU, that is: for adjacent 
+two encoder data, we denote their time stamps as $t_{i}^e$ and $t_{i+1}^e$, we iterate through the IMU time stamps to find 
+the timestamp $t^{imu}$'s index $j$ and $k$, which satisfy that $t_j^{imu} \le t_{i}^e \cap t_{j+1}^{imu} > t_{i}^e$, 
+$t_k^{imu} \le t_{i+1}^e \cap t_{k+1}^{imu} > t_{i+1}^e$ and $k \ge j$. Then we could split the time interval $t_{i}^e \sim t_{i+1}^e$
+to multiple time spans and sum over the position translation using the same velocity while with correpsonding poses.
+
+\subsection{Update}
+After the predicting step, we could update each particle's weight using map correlation, which is simply counting the 
+number of matching obstacles. An alternative metric is that we not only measure the given location's correlation but 
+a range around given location, and find the maximum point and renew both the particle's location and weight
+\footnote{This step is equivalent to adding the number of the particles. However considering that the every time we will
+calculate a quite large area, say $5 \times 5$, so to achieve a similar effect, we may need to scale the number of the 
+particles by 25 or even more (squarely related), and that is a great cost of time.}. For 
+each particle, we multiply its weight with the correlation. After that, we normalize the particles' weights, and check the 
+number of effective particles $N_{eff} = 1/(\sum_i\alpha_i^2)$. If $N_{eff}$ is lower than a set threshold, we need to resample the particle before
+continuing the process again.
+
+\subsection{Renew the Occupancy Map}
+The policy is quite straightforward. After updating, we could pick a particle with the largest likelihood to renew the log
+odds of the occupancy map $odds$. We first transform the lidar scan from lidar frame to the world frame, and then use ray-tracing
+algorithm bresenham to find the free cells and occupied cells. For each cell covered by the rays described by bresenham, we
+count the times that it is denoted as free cells and the times that it is denoted as occupied cells, from which we could 
+obtain two matrixes $count_{free}$ and $count_{occ}$ both of the same size as the occupancy map. Then the log odds of the occupancy
+map could be renewed as $odds = odds + 2 \times count_{occ}\times \log(4) - count_{free}\times \log(4)$\footnote{In the equation,
+I adopted different weights for occupied cells and free cells, because I think we should be more certain about the obstacles
+while less certain about free cells from the lidar scan.}.
+
 
 
 \subsection{Panorama Generation}
+
+
 
 \section{Results}
 \subsection{Orientation Tracking}

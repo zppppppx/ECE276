@@ -53,12 +53,16 @@ for dataset in [20, 21]:
             
         # Update the weights and find the most_likely_particle
         ind = slam.update(slam.occupancy_map, slam.ranges, slam.lidar_coordinates_aligned[:, :, i])
+        # ind = slam.update(slam.occupancy_odds, slam.ranges, slam.lidar_coordinates_aligned[:, :, i])
         # renew the occupancy map and positions using the particle
         slam.renew_occupancy(slam.particles[ind], slam.lidar_coordinates_aligned[:, :, i])
         positions = np.concatenate([positions, slam.particles[ind].position.reshape([3,1])], axis=1)
 
         # check the weights and resample the particles
-        slam.checkAndResample()
+        
+    slam.occupancy_map[np.where(slam.occupancy_odds > 0)] = 1
+    slam.occupancy_map[np.where(slam.occupancy_odds < 0)] = 0
+    slam.occupancy_map[np.where(slam.occupancy_odds == 0)] = 0.5
 
     
     plt.figure(figsize=(8, 8))

@@ -74,6 +74,8 @@ def mapCorrelation(im, grid_scale, ranges, vp, xs, ys):
             valid = np.logical_and(np.logical_and((iy >= 0), (iy < ny)),
                                    np.logical_and((ix >= 0), (ix < nx)))
             cpr[jx, jy] = np.sum(im[ix[valid], iy[valid]])
+        
+    cpr[np.where(cpr <= 0)] = 0.1
     return cpr
 
 

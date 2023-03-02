@@ -355,7 +355,7 @@ class SLAM:
                                             self.ranges[1][1] - self.ranges[1][0] + 1], dtype=np.float32)
             self.occupancy_odds[x_shift:(x_shift+x_range),
                                 y_shift:(y_shift+y_range)] = old_occupancy_odds
-            self.occupancy_map = np.ones_like(self.occupancy_odds, dtype=np.float32)
+            self.occupancy_map = np.zeros_like(self.occupancy_odds, dtype=np.float32)
 
         # TODO: need to implement the way to sample the occupied or free cells
         # these three variables are the number of corresponding cells
@@ -375,7 +375,7 @@ class SLAM:
         self.occupancy_odds += 2*np.log(4)*occupied_cells
         self.occupancy_odds -= np.log(4)*free_cells
 
-        self.occupancy_map[np.where(self.occupancy_odds >= 0)] = 1
+        self.occupancy_map[np.where(self.occupancy_odds > 0)] = 1
         self.occupancy_map[np.where(self.occupancy_odds < 0)] = 0
 
     def dead_reckoning(self):
