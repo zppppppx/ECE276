@@ -68,7 +68,9 @@ class Particle:
         """
         xs = self.position.reshape([3, -1])[0, :]
         ys = self.position.reshape([3, -1])[1, :]
-        cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lidar_coordinates, xs, ys)
+        lc = lidar_coordinates.copy()
+        lc = self.rot.dot(lc) # rotate to standard representation
+        cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
         self.weight *= cpr[0,0]
 
 if __name__ == "__main__":

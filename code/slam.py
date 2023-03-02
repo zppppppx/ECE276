@@ -372,9 +372,11 @@ class SLAM:
             
         # print(free_cells)
 
-        self.occupancy_odds[np.where(occupied_cells > free_cells)] += np.log(4)
-        self.occupancy_odds[np.where((occupied_cells == free_cells) & (occupied_cells != 0))] += np.log(2)
-        self.occupancy_odds[np.where(occupied_cells < free_cells)] -= np.log(4)
+        # self.occupancy_odds[np.where(occupied_cells > free_cells)] += np.log(4)
+        # self.occupancy_odds[np.where((occupied_cells == free_cells) & (occupied_cells != 0))] += np.log(2)
+        # self.occupancy_odds[np.where(occupied_cells < free_cells)] -= np.log(4)
+        self.occupancy_odds += 2*np.log(4)*occupied_cells
+        self.occupancy_odds -= np.log(4)*free_cells
 
         self.occupancy_map[np.where(self.occupancy_odds >= 0)] = 1
         self.occupancy_map[np.where(self.occupancy_odds < 0)] = 0
