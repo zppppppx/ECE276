@@ -24,7 +24,7 @@ for dataset in [20, 21]:
 
     T_speed = slam.encoder_stamps.size
     positions = np.zeros([3, 1])
-    poses = np.diag([1,1,1]).astype(np.float32).reshape([3,3,1])
+    poses = np.diag([1,1,1]).astype(np.float64).reshape([3,3,1])
     for i in tqdm((range(T_speed-1))):
         # for each time span of adjacent linear velocity, we find corresponding angular velocity series that the 
         # first time span covers the timestamp beginning and the last time span covers the ending

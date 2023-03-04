@@ -6,17 +6,19 @@ lidar_height = 0.51435
 lidar_coor_body = np.array([ lidar_projected_span - wheel_span/2, 0, lidar_height/2]) # the coordinates of the lidar in the car body frame
 
 move_every_tic = 0.254 * np.pi / 360 # the distance of every movement at every tic
-grid_scale = 0.05
+grid_scale = 0.1
 outer_width = 0.47625 # the width between the outer surface of two parallel wheels
 inner_width = 0.31115 # the width between the innner surface of two parallel wheels
 L = (outer_width + inner_width) / 2 # the length of axle
 
 freq = 12
+ranges = [40, 40]
+shift = [int(ranges[0]/grid_scale), int(ranges[1]/grid_scale)]
 
-cpr_grid = 7
+cpr_grid = 9
 grid_mid = int(cpr_grid/2)
 
-theta_range = 7
+theta_range = 9
 theta_mid = int(theta_range/2)
 theta_delta = 1 / 180 * np.pi
 

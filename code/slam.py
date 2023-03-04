@@ -3,7 +3,7 @@ from Config import *
 from pr2_utils import *
 import matplotlib.pyplot as plt
 import scipy.linalg as linalg
-from particle import Particle
+from particle import *
 from utils import *
 from tqdm import tqdm
 
@@ -424,7 +424,14 @@ class SLAM:
             lidar_coordinates: the data obtained from the lidar scan, in the lidar frame
         """
         for i in range(N):
-            self.particles[i].update(occupancy_map, ranges, lidar_coordinates)
+            res = update(self.particles[i].position.astype(np.float64), self.particles[i].rot.astype(np.float64),
+                        self.occupancy_map.astype(np.float64), self.ranges.astype(np.int64), 
+                        lidar_coordinates.astype(np.float64))
+            self.particles[i].weight *= res[0]
+            self.particles[i].position[:2] = res[1:3]
+            self.particles[i].rot = rotate_z(res[-1]).dot(self.particles[i].rot.astype(np.float64))
+        # for i in range(N):
+        #     self.particles[i].update(occupancy_map, ranges, lidar_coordinates)
 
         weights = np.array([self.particles[i].weight for i in range(N)])
         weights_sum = np.sum(weights)
@@ -486,13 +493,13 @@ if __name__ == "__main__":
     # plot_particle_trajectory(slam)
 
     # slam.renew_occupancy(slam.particles[0], slam.lidar_coordinates_aligned[:, :, 0])
-    # slam.dead_reckoning()
-    # plt.imshow(slam.occupancy_map)
-    # plt.show()
+    slam.dead_reckoning()
+    plt.imshow(slam.occupancy_map)
+    plt.show()
     # for i in range(N):
     #     print(slam.particles[i].weight)
     # slam.update(slam.occupancy_map, slam.ranges, slam.lidar_coordinates[:, :, 0])
     # for i in range(N):
     #     print(slam.particles[i].weight)
 
-    # input()
+    input()

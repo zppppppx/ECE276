@@ -3,21 +3,21 @@ from utils import *
 from pr2_utils import *
 from Config import *
 import transforms3d as t3d
-
+from numba import jit
 
 class Particle:
     """
     This is the class describing the action of particles
     """
 
-    def __init__(self, position: np.array, rot: np.array, weight: np.float32) -> None:
+    def __init__(self, position: np.array, rot: np.array, weight: np.float64) -> None:
         # initialize the position and rotation matrix of the particle
         self.position = position
         self.rot = rot
         self.qT = t3d.quaternions.mat2quat(rot).reshape(4, 1)
         self.weight = weight
 
-    def predict(self, V_body: np.float32, V_time_stamps: np.array, W, W_time_stamps: np.array):
+    def predict(self, V_body: np.float64, V_time_stamps: np.array, W, W_time_stamps: np.array):
         """
         Predict the position and the rotation of the particle in the next step
 
@@ -78,24 +78,42 @@ class Particle:
         # lc = self.rot.dot(lc) # rotate to standard representation
 
         lc = lidar_coordinates.copy()
-        lc = self.rot.dot(lc) # rotate to standard representation
+        # lc = self.rot.dot(lc) # rotate to standard representation
         # cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
-        cpr, npos, nrot = mapCorrelation(occupancy_map, grid_scale, ranges, lc, self.position)
-        self.position = npos
-        self.rot = nrot.dot(self.rot)
-        # self.weight *= cpr[0,0]
+        # cpr, npos, nrot = update(self.position, self.rot, occupancy_map, ranges, lc)
+        print(self.position.dtype, self.rot.dtype, occupancy_map.dtype, ranges.dtype, lc.dtype)
+        print(self.position.shape, self.rot.shape, occupancy_map.shape, ranges.shape, lc.shape)
+        res = update(self.position.astype(np.float64), self.rot.astype(np.float64), 
+                    occupancy_map.astype(np.float64), ranges.astype(np.float64), lc.astype(np.float64))
+
+
+        self.weight *= res[0]
+        self.position[:2] = res[1:3]
+        self.rot = rotate_z(res[-1]).dot(self.rot)
+
+
         
-        # max_cpr = np.max(cpr)
-        # self.weight *= max_cpr
-        # x_shift, y_shift = np.where(cpr == max_cpr)
-        # shift the particle's position to the maximum point
-        # self.position[0] += (x_shift[0]-grid_mid)*grid_scale
-        # self.position[1] += (y_shift[0]-grid_mid)*grid_scale
 
-        self.weight *= cpr
+@njit(numba.float64[::1](numba.float64[::1], numba.float64[:, ::1], numba.float64[:, ::1], numba.int64[:, ::1], numba.float64[:, ::1]))
+def update(position, rot, occupancy_map: np.array, ranges: np.array, lidar_coordinates: np.array):
+    lc = lidar_coordinates.copy().astype(np.float64)
+    lc = rot.dot(lc) # rotate to standard representation
+    # cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
+    # print(position.dtype, rot.dtype, occupancy_map.dtype, ranges.dtype, lc.dtype)
+    # print(position.shape, rot.shape, occupancy_map.shape, ranges.shape, lc.shape)
+    
+    res = mapCorrelation(occupancy_map, np.float64(grid_scale), ranges, lc, position)
+    # position = npos
+    # rot = nrot.dot(rot)
 
-        # print(self.position)
+    # return cpr, npos, nrot
+    return res
 
 if __name__ == "__main__":
-    a = Particle()
-    print(a.rot[:, :, 0])
+    particle = Particle(np.array([0,0,0]).astype(np.float64), np.diag([1,1,1]).astype(np.float64), 1)
+    occ = np.random.rand(30, 30).astype(np.float64)
+    ranges = np.array([[-10, 10], [-10, 10]]).astype(np.int64)
+    vp = np.random.randn(3, 1000).astype(np.float64)
+    position = np.random.randn(3).astype(np.float64)
+
+    particle.update(occ, ranges, vp)

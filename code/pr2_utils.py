@@ -3,6 +3,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import matplotlib.pyplot as plt
 import numba
+from numba import jit, njit
+from numba.types import float64, int64
 from Config import *
 plt.ion()
 
@@ -79,6 +81,18 @@ def toc(tstart, name="Operation"):
 #     cpr[np.where(cpr <= 0)] = 0.1
 #     return cpr
 
+@jit(numba.float64[::1](numba.float64[::1]), nopython=True)
+def rnd(x):
+    out = np.empty_like(x)
+    np.round(x, 0, out)
+    return out
+
+@jit(nopython=True)
+def dot(a, b):
+    out = np.dot(a, b)
+    return out
+
+@numba.njit(numba.float64[::1](numba.float64[:, ::1], numba.float64, numba.int64[:, ::1], numba.float64[:, ::1], numba.float64[::1]))
 def mapCorrelation(im, grid_scale, ranges, vp, position):
     '''
     INPUT 
@@ -94,8 +108,8 @@ def mapCorrelation(im, grid_scale, ranges, vp, position):
     xmin = ranges[0, 0] * grid_scale
     ymin = ranges[1, 0] * grid_scale
 
-    xs = position.copy().reshape([3, -1])[0, :]
-    ys = position.copy().reshape([3, -1])[1, :]
+    xs = position.copy()[0]
+    ys = position.copy()[1]
 
     ar = np.arange(-grid_mid, grid_mid+1) * grid_scale
     xs = xs + ar
@@ -107,33 +121,39 @@ def mapCorrelation(im, grid_scale, ranges, vp, position):
     ntheta = theta_ar.size
     # cpr = np.zeros((nxs, nys))
     cpr = 1
-    pos = position.copy()
-    rot = np.diag([1, 1, 1])
+    pos = position.copy().astype(np.float64)
+    # rot = np.array([[1,0,0], [0,1,0], [0,0,1]], dtype=np.float64)
+    angle = 0.
     
     for it in range(ntheta):
-        nrot = rotate_z(theta_ar[it])
+        # nrot = rotate_z(theta_ar[it])
+        theta = theta_ar[it]
+        nrot = np.array([[np.cos(theta), -np.sin(theta), 0.], [np.sin(theta), np.cos(theta), 0.], [0., 0., 1.]]).astype(np.float64)
         nvp = nrot.dot(vp)
 
         for jy in range(0, nys):
             y1 = nvp[1, :] + ys[jy]  # 1 x 1076
-            iy = np.int16(np.round((y1 - ymin)/grid_scale))
+            iy = rnd((y1 - ymin)/grid_scale).astype(np.int16)
             for jx in range(0, nxs):
                 x1 = nvp[0, :] + xs[jx]  # 1 x 1076
-                ix = np.int16(np.round((x1 - xmin)/grid_scale))
+                ix = rnd((x1 - xmin)/grid_scale).astype(np.int16)
                 valid = np.logical_and(np.logical_and((iy >= 0), (iy < ny)),
                                     np.logical_and((ix >= 0), (ix < nx)))
-                new_cpr = np.sum(im[ix[valid], iy[valid]])
+                new_cpr = 0
+                for iv in range(valid.size):
+                    new_cpr += im[ix[iv], iy[iv]]
+                
                 if new_cpr > cpr:
                     cpr = new_cpr
-                    pos = np.array([xs[jx], ys[jy], 0])
-                    rot = nrot
+                    pos = np.array([xs[jx], ys[jy], 0], dtype=np.float64)
+                    angle = theta
 
-    return cpr, pos, rot
+    return np.array([np.float64(cpr), np.float64(pos[0]), np.float64(pos[1]), np.float64(angle)])
 
 
+@numba.njit(numba.float64[:, ::1](numba.float64))
 def rotate_z(theta):
-    
-    rot = np.array([[np.cos(theta), -np.sin(theta), 0], [np.sin(theta), np.cos(theta), 0], [0, 0, 1]])
+    rot = np.array([[np.cos(theta), -np.sin(theta), 0.], [np.sin(theta), np.cos(theta), 0.], [0., 0., 1.]]).astype(np.float64)
     return rot
 
 
