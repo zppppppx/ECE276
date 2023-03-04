@@ -24,6 +24,7 @@ for dataset in [20, 21]:
 
     T_speed = slam.encoder_stamps.size
     positions = np.zeros([3, 1])
+    poses = np.diag([1,1,1]).astype(np.float32).reshape([3,3,1])
     for i in tqdm((range(T_speed-1))):
         # for each time span of adjacent linear velocity, we find corresponding angular velocity series that the 
         # first time span covers the timestamp beginning and the last time span covers the ending
@@ -57,6 +58,8 @@ for dataset in [20, 21]:
         # renew the occupancy map and positions using the particle
         slam.renew_occupancy(slam.particles[ind], slam.lidar_coordinates_aligned[:, :, i])
         positions = np.concatenate([positions, slam.particles[ind].position.reshape([3,1])], axis=1)
+        poses = np.concatenate([poses, slam.particles[ind].rot.reshape([3,3,1])], axis=2)
+        # print(slam.particles[ind].position)
 
         # check the weights and resample the particles
         
@@ -64,7 +67,13 @@ for dataset in [20, 21]:
     slam.occupancy_map[np.where(slam.occupancy_odds < 0)] = 0
     slam.occupancy_map[np.where(slam.occupancy_odds == 0)] = 0.5
 
+    trajectory = positions.copy()
+
+
+    np.savez('./results/d%d_N%d.npz'%(dataset, N), poses = poses,
+            oc_map=slam.occupancy_map, map_ranges=slam.ranges, trajectory=trajectory, grid_scale=grid_scale)
     
+
     plt.figure(figsize=(8, 8))
     plt.imshow(slam.occupancy_map, cmap="hot")
     positions[0, :] -= slam.ranges[0, 0] * grid_scale
@@ -76,8 +85,4 @@ for dataset in [20, 21]:
     plt.savefig("./figs/slam_d%d_N%d"%(dataset, N), bbox_inches='tight', pad_inches=0.5)
     # plt.show()
 
-    # input()
-
-    np.savez('./results/d%d_N%d.npz'%(dataset, N), 
-            oc_map=slam.occupancy_map, map_ranges=slam.ranges, trajectory=positions, grid_scale=grid_scale)
     
