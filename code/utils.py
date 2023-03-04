@@ -1,6 +1,7 @@
 import numpy as np
 import transforms3d as t3d
 import matplotlib.pyplot as plt
+from scipy.signal import butter, lfilter
 
 def motion(qt: np.array, omega: np.array, interval: np.float32) -> np.array:
     """
@@ -106,3 +107,19 @@ def plot_particle_trajectory(slam):
 
     plt.legend(list(range(n)))
     plt.show()
+
+
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    # print(cutoff, fs)
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    print(cutoff, fs)
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+

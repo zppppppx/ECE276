@@ -10,14 +10,17 @@ grid_scale = 0.05
 outer_width = 0.47625 # the width between the outer surface of two parallel wheels
 inner_width = 0.31115 # the width between the innner surface of two parallel wheels
 L = (outer_width + inner_width) / 2 # the length of axle
+
+freq = 12
+
 cpr_grid = 7
 grid_mid = int(cpr_grid/2)
 
 theta_range = 7
 theta_mid = int(theta_range/2)
-theta_delta = 3 * 180 * np.pi
+theta_delta = 1 / 180 * np.pi
 
-N = 20 # the number of the particles
+N = 25 # the number of the particles
 Neff_threshold = 0.2 * N
 
 # the standard deviation of the norm distribution for velocity and angular velocity

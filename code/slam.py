@@ -185,16 +185,20 @@ class SLAM:
             # TODO: low pass filter the angular velocity
             # angular velocity in rad/sec
             self.imu_angular_velocity = data["angular_velocity"]
-            self.low_pass(self.imu_angular_velocity)
+            self.low_pass()
             # self.imu_linear_acceleration = data["linear_acceleration"] # Accelerations in gs (gravity acceleration scaling)
             # acquisition times of the imu measurements
             self.imu_stamps = data["time_stamps"]
 
-    def low_pass(self, freq=10):
+    def low_pass(self):
         """
         Low pass filter the angular velocity with frequency freq (10 Hz by default) TODO
         """
         self.imu_angular_velocity[:2, :] = 0
+        # print(self.imu_angular_velocity[-1, :].shape)
+
+        self.imu_angular_velocity[-1, :] = butter_lowpass_filter(self.imu_angular_velocity[-1, :], freq, 100)
+        # print(self.imu_angular_velocity[-1, :].shape)
 
     def get_orientations(self, anguler_velocity):
         """
@@ -462,6 +466,8 @@ if __name__ == "__main__":
     lidar = slam.lidar_coordinates[:, :, 0].reshape([3, -1, 1])
     print(lidar.shape)
 
+    print((slam.imu_stamps[-1]-slam.imu_stamps[0])/slam.imu_stamps.size)
+
     # slam.get_occupancy(pos0, lidar)
 
     # plt.imshow(slam.occupancy_map.transpose(1,0))
@@ -477,7 +483,7 @@ if __name__ == "__main__":
     # plot_trajectory(slam, 5)
     # input()
 
-    plot_particle_trajectory(slam)
+    # plot_particle_trajectory(slam)
 
     # slam.renew_occupancy(slam.particles[0], slam.lidar_coordinates_aligned[:, :, 0])
     # slam.dead_reckoning()
@@ -489,4 +495,4 @@ if __name__ == "__main__":
     # for i in range(N):
     #     print(slam.particles[i].weight)
 
-    input()
+    # input()
