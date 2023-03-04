@@ -372,8 +372,10 @@ class SLAM:
                            [0], line[1, -1] - self.ranges[1][0]] += 1
 
 
-        self.occupancy_odds += 2*np.log(4)*occupied_cells
-        self.occupancy_odds -= np.log(4)*free_cells
+        # self.occupancy_odds += 2*np.log(4)*occupied_cells
+        # self.occupancy_odds -= np.log(4)*free_cells
+        self.occupancy_odds[np.where(occupied_cells > free_cells)] += np.log(4)
+        self.occupancy_odds[np.where(occupied_cells < free_cells)] -= np.log(4)
 
         self.occupancy_map[np.where(self.occupancy_odds > 0)] = 1
         self.occupancy_map[np.where(self.occupancy_odds < 0)] = 0
@@ -475,12 +477,12 @@ if __name__ == "__main__":
     # plot_trajectory(slam, 5)
     # input()
 
-    # plot_particle_trajectory(slam)
+    plot_particle_trajectory(slam)
 
     # slam.renew_occupancy(slam.particles[0], slam.lidar_coordinates_aligned[:, :, 0])
-    slam.dead_reckoning()
-    plt.imshow(slam.occupancy_map)
-    plt.show()
+    # slam.dead_reckoning()
+    # plt.imshow(slam.occupancy_map)
+    # plt.show()
     # for i in range(N):
     #     print(slam.particles[i].weight)
     # slam.update(slam.occupancy_map, slam.ranges, slam.lidar_coordinates[:, :, 0])

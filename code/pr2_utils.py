@@ -3,6 +3,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import matplotlib.pyplot as plt
 import numba
+from Config import *
 plt.ion()
 
 
@@ -47,7 +48,38 @@ def toc(tstart, name="Operation"):
 #             cpr[jx, jy] = np.sum(im[ix[valid], iy[valid]])
 #     return cpr
 
-def mapCorrelation(im, grid_scale, ranges, vp, xs, ys):
+# def mapCorrelation(im, grid_scale, ranges, vp, xs, ys):
+#     '''
+#     INPUT 
+#     im              the map 
+#     vp[0:2,:]       occupied x,y positions from range sensor (in physical unit)  
+#     xs,ys           physical x,y,positions you want to evaluate "correlation" 
+
+#     OUTPUT 
+#     c               sum of the cell values of all the positions hit by range sensor
+#     '''
+#     nx = im.shape[0]
+#     ny = im.shape[1]
+#     xmin = ranges[0, 0] * grid_scale
+#     ymin = ranges[1, 0] * grid_scale
+
+#     nxs = xs.size
+#     nys = ys.size
+#     cpr = np.zeros((nxs, nys))
+#     for jy in range(0, nys):
+#         y1 = vp[1, :] + ys[jy]  # 1 x 1076
+#         iy = np.int16(np.round((y1 - ymin)/grid_scale))
+#         for jx in range(0, nxs):
+#             x1 = vp[0, :] + xs[jx]  # 1 x 1076
+#             ix = np.int16(np.round((x1 - xmin)/grid_scale))
+#             valid = np.logical_and(np.logical_and((iy >= 0), (iy < ny)),
+#                                    np.logical_and((ix >= 0), (ix < nx)))
+#             cpr[jx, jy] = np.sum(im[ix[valid], iy[valid]])
+        
+#     cpr[np.where(cpr <= 0)] = 0.1
+#     return cpr
+
+def mapCorrelation(im, grid_scale, ranges, vp, position):
     '''
     INPUT 
     im              the map 
@@ -62,21 +94,47 @@ def mapCorrelation(im, grid_scale, ranges, vp, xs, ys):
     xmin = ranges[0, 0] * grid_scale
     ymin = ranges[1, 0] * grid_scale
 
+    xs = position.copy().reshape([3, -1])[0, :]
+    ys = position.copy().reshape([3, -1])[1, :]
+
+    ar = np.arange(-grid_mid, grid_mid+1) * grid_scale
+    xs = xs + ar
+    ys = ys + ar
+
+    theta_ar = np.arange(-theta_mid, theta_mid+1) * theta_delta
     nxs = xs.size
     nys = ys.size
-    cpr = np.zeros((nxs, nys))
-    for jy in range(0, nys):
-        y1 = vp[1, :] + ys[jy]  # 1 x 1076
-        iy = np.int16(np.round((y1 - ymin)/grid_scale))
-        for jx in range(0, nxs):
-            x1 = vp[0, :] + xs[jx]  # 1 x 1076
-            ix = np.int16(np.round((x1 - xmin)/grid_scale))
-            valid = np.logical_and(np.logical_and((iy >= 0), (iy < ny)),
-                                   np.logical_and((ix >= 0), (ix < nx)))
-            cpr[jx, jy] = np.sum(im[ix[valid], iy[valid]])
-        
-    cpr[np.where(cpr <= 0)] = 0.1
-    return cpr
+    ntheta = theta_ar.size
+    # cpr = np.zeros((nxs, nys))
+    cpr = 1
+    pos = position.copy()
+    rot = np.diag([1, 1, 1])
+    
+    for it in range(ntheta):
+        nrot = rotate_z(theta_ar[it])
+        nvp = nrot.dot(vp)
+
+        for jy in range(0, nys):
+            y1 = nvp[1, :] + ys[jy]  # 1 x 1076
+            iy = np.int16(np.round((y1 - ymin)/grid_scale))
+            for jx in range(0, nxs):
+                x1 = nvp[0, :] + xs[jx]  # 1 x 1076
+                ix = np.int16(np.round((x1 - xmin)/grid_scale))
+                valid = np.logical_and(np.logical_and((iy >= 0), (iy < ny)),
+                                    np.logical_and((ix >= 0), (ix < nx)))
+                new_cpr = np.sum(im[ix[valid], iy[valid]])
+                if new_cpr > cpr:
+                    cpr = new_cpr
+                    pos = np.array([xs[jx], ys[jy], 0])
+                    rot = nrot
+
+    return cpr, pos, rot
+
+
+def rotate_z(theta):
+    
+    rot = np.array([[np.cos(theta), -np.sin(theta), 0], [np.sin(theta), np.cos(theta), 0], [0, 0, 1]])
+    return rot
 
 
 def bresenham2D(sx, sy, ex, ey):
