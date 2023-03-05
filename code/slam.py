@@ -451,7 +451,7 @@ class SLAM:
             j, c = 0, weights[0]
             for k in range(N):
                 u = np.random.rand() * 1 / N
-                beta = u + (k-1)/N
+                beta = u + k/N
                 while (beta > c):
                     j += 1
                     c += weights[j]
@@ -490,12 +490,12 @@ if __name__ == "__main__":
     # plot_trajectory(slam, 5)
     # input()
 
-    plot_particle_trajectory(slam)
+    # plot_particle_trajectory(slam)
 
-    # slam.renew_occupancy(slam.particles[0], slam.lidar_coordinates_aligned[:, :, 0])
-    # slam.dead_reckoning()
-    # plt.imshow(slam.occupancy_map)
-    # plt.show()
+    slam.renew_occupancy(slam.particles[0], slam.lidar_coordinates_aligned[:, :, 0])
+    slam.dead_reckoning()
+    plt.imshow(slam.occupancy_map)
+    plt.show()
     # for i in range(N):
     #     print(slam.particles[i].weight)
     # slam.update(slam.occupancy_map, slam.ranges, slam.lidar_coordinates[:, :, 0])
