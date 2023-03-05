@@ -139,14 +139,19 @@ def mapCorrelation(im, grid_scale, ranges, vp, position):
                 ix = rnd((x1 - xmin)/grid_scale).astype(np.int16)
                 valid = np.logical_and(np.logical_and((iy >= 0), (iy < ny)),
                                     np.logical_and((ix >= 0), (ix < nx)))
-                new_cpr = 0
+                new_cpr = 1
                 for iv in range(valid.size):
+                    if(ix[iv] < 0 or ix[iv] >= nx or iy[iv] < 0 or iy[iv] >= ny):
+                        continue
                     new_cpr += im[ix[iv], iy[iv]]
                 
+                # print(new_cpr)
                 if new_cpr > cpr:
                     cpr = new_cpr
                     pos = np.array([xs[jx], ys[jy], 0], dtype=np.float64)
                     angle = theta
+
+    cpr = cpr / (nx)
 
     return np.array([np.float64(cpr), np.float64(pos[0]), np.float64(pos[1]), np.float64(angle)])
 
