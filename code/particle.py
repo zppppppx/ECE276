@@ -57,58 +57,42 @@ class Particle:
             # print(interval)
             self.position += interval
 
-    def update(self, occupancy_map: np.array, ranges: np.array, lidar_coordinates: np.array):
-        """
-        Update the weights of the particle
+    # def update(self, occupancy_map: np.array, ranges: np.array, lidar_coordinates: np.array):
+    #     """
+    #     Update the weights of the particle
 
-        Args:
-            occupancy_map: the occupancy map
-            ranges: the range of the grid-scaled map
-            lidar_coordinates: the data obtained from the lidar scan, in the lidar frame
-        """
-        # xs = self.position.copy().reshape([3, -1])[0, :]
-        # ys = self.position.copy().reshape([3, -1])[1, :]
+    #     Args:
+    #         occupancy_map: the occupancy map
+    #         ranges: the range of the grid-scaled map
+    #         lidar_coordinates: the data obtained from the lidar scan, in the lidar frame
+    #     """
+    #     # xs = self.position.copy().reshape([3, -1])[0, :]
+    #     # ys = self.position.copy().reshape([3, -1])[1, :]
 
-        # ar = np.arange(-grid_mid, grid_mid+1) * grid_scale
-        # xs = xs + ar
-        # ys = ys + ar
-
-
-        # lc = lidar_coordinates.copy()
-        # lc = self.rot.dot(lc) # rotate to standard representation
-
-        lc = lidar_coordinates.copy()
-        # lc = self.rot.dot(lc) # rotate to standard representation
-        # cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
-        # cpr, npos, nrot = update(self.position, self.rot, occupancy_map, ranges, lc)
-        print(self.position.dtype, self.rot.dtype, occupancy_map.dtype, ranges.dtype, lc.dtype)
-        print(self.position.shape, self.rot.shape, occupancy_map.shape, ranges.shape, lc.shape)
-        res = update(self.position.astype(np.float64), self.rot.astype(np.float64), 
-                    occupancy_map.astype(np.float64), ranges.astype(np.float64), lc.astype(np.float64))
+    #     # ar = np.arange(-grid_mid, grid_mid+1) * grid_scale
+    #     # xs = xs + ar
+    #     # ys = ys + ar
 
 
-        self.weight *= res[0]
-        self.position[:2] = res[1:3]
-        self.rot = rotate_z(res[-1]).dot(self.rot)
+    #     # lc = lidar_coordinates.copy()
+    #     # lc = self.rot.dot(lc) # rotate to standard representation
+
+    #     lc = lidar_coordinates.copy()
+    #     # lc = self.rot.dot(lc) # rotate to standard representation
+    #     # cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
+    #     # cpr, npos, nrot = update(self.position, self.rot, occupancy_map, ranges, lc)
+    #     print(self.position.dtype, self.rot.dtype, occupancy_map.dtype, ranges.dtype, lc.dtype)
+    #     print(self.position.shape, self.rot.shape, occupancy_map.shape, ranges.shape, lc.shape)
+    #     res = update(self.position.astype(np.float64), self.rot.astype(np.float64), 
+    #                 occupancy_map.astype(np.float64), ranges.astype(np.float64), lc.astype(np.float64))
+
+
+    #     self.weight *= res[0]
+    #     self.position[:2] = res[1:3]
+    #     self.rot = rotate_z(res[-1]).dot(self.rot)
 
 
         
-
-# @njit(numba.float64[::1](numba.float64[::1], numba.float64[:, ::1], numba.float64[:, ::1], numba.int64[:, ::1], numba.float64[:, ::1]), debug=True)
-# def update(position, rot, occupancy_map: np.array, ranges: np.array, lidar_coordinates: np.array):
-#     lc = lidar_coordinates.copy().astype(np.float64)
-#     lc = rot.dot(lc) # rotate to standard representation
-#     # cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
-#     # print(position.dtype, rot.dtype, occupancy_map.dtype, ranges.dtype, lc.dtype)
-#     # print(position.shape, rot.shape, occupancy_map.shape, ranges.shape, lc.shape)
-    
-#     res = mapCorrelation(occupancy_map, np.float64(grid_scale), ranges, lc, position)
-#     # position = npos
-#     # rot = nrot.dot(rot)
-
-#     # return cpr, npos, nrot
-#     return res
-
 
 @njit(numba.float64[::1](numba.float64[::1], numba.float64[:, ::1], numba.float64[:, ::1], numba.int64[:, ::1], numba.float64[:, ::1]), debug=True)
 def update(position, rot, occupancy_map: np.array, ranges: np.array, lidar_coordinates: np.array):
@@ -117,16 +101,32 @@ def update(position, rot, occupancy_map: np.array, ranges: np.array, lidar_coord
     # cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
     # print(position.dtype, rot.dtype, occupancy_map.dtype, ranges.dtype, lc.dtype)
     # print(position.shape, rot.shape, occupancy_map.shape, ranges.shape, lc.shape)
-    locs = position.reshape(3, 1) + rot.dot(shift_matrix)
-    locs = locs.astype(np.float64)
-
     
-    res = mapCorrelation(occupancy_map, ranges, lc, locs)
+    res = mapCorrelation(occupancy_map, np.float64(grid_scale), ranges, lc, position)
     # position = npos
     # rot = nrot.dot(rot)
 
     # return cpr, npos, nrot
     return res
+
+
+# @njit(numba.float64[::1](numba.float64[::1], numba.float64[:, ::1], numba.float64[:, ::1], numba.int64[:, ::1], numba.float64[:, ::1]), debug=True)
+# def update(position, rot, occupancy_map: np.array, ranges: np.array, lidar_coordinates: np.array):
+#     lc = lidar_coordinates.copy().astype(np.float64)
+#     lc = rot.dot(lc) # rotate to standard representation
+#     # cpr = mapCorrelation(occupancy_map, grid_scale, ranges, lc, xs, ys)
+#     # print(position.dtype, rot.dtype, occupancy_map.dtype, ranges.dtype, lc.dtype)
+#     # print(position.shape, rot.shape, occupancy_map.shape, ranges.shape, lc.shape)
+#     locs = position.reshape(3, 1) + rot.dot(shift_matrix)
+#     locs = locs.astype(np.float64)
+
+    
+#     res = mapCorrelation(occupancy_map, ranges, lc, locs)
+#     # position = npos
+#     # rot = nrot.dot(rot)
+
+#     # return cpr, npos, nrot
+#     return res
 
 if __name__ == "__main__":
     particle = Particle(np.array([0,0,0]).astype(np.float64), np.diag([1,1,1]).astype(np.float64), 1)

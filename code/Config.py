@@ -15,7 +15,7 @@ freq = 12
 ranges = [40, 40]
 shift = [int(ranges[0]/grid_scale), int(ranges[1]/grid_scale)]
 
-cpr_grid = 9
+cpr_grid = 13
 grid_mid = int(cpr_grid/2)
 
 x_grid = 1
@@ -31,11 +31,11 @@ shift_matrix = np.concatenate([xsv[:,:,None], ysv[:,:,None]], axis=2)
 shift_matrix = shift_matrix.reshape([2, -1])
 shift_matrix = np.concatenate([shift_matrix, np.zeros([1, shift_matrix.shape[-1]])], axis=0)
 
-theta_range = 1#9
+theta_range = 5#9
 theta_mid = int(theta_range/2)
-theta_delta = 3 / 180 * np.pi
+theta_delta = 1 / 180 * np.pi
 
-N = 30 # the number of the particles
+N = 25 # the number of the particles
 Neff_threshold = 0.2 * N
 
 # the standard deviation of the norm distribution for velocity and angular velocity

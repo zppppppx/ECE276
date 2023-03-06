@@ -6,6 +6,7 @@ import scipy.linalg as linalg
 from particle import *
 from utils import *
 from tqdm import tqdm
+from scipy.special import logsumexp
 
 class SLAM:
     """
@@ -427,16 +428,24 @@ class SLAM:
             res = update(self.particles[i].position.astype(np.float64), self.particles[i].rot.astype(np.float64),
                         occupancy_map.astype(np.float64), ranges.astype(np.int64), 
                         lidar_coordinates.astype(np.float64))
-            self.particles[i].weight *= res[0]
+            # self.particles[i].weight *= res[0]
+            self.particles[i].weight *= np.exp(res[0])
             self.particles[i].position[:2] = res[1:3]
             self.particles[i].rot = rotate_z(res[-1]).dot(self.particles[i].rot.astype(np.float64))
         # for i in range(N):
         #     self.particles[i].update(occupancy_map, ranges, lidar_coordinates)
 
-        weights = np.array([self.particles[i].weight for i in range(N)])
-        weights_sum = np.sum(weights)
+        # weights = np.array([self.particles[i].weight for i in range(N)])
+        # weights_sum = np.sum(weights)
+
+        # for i in range(N):
+        #     self.particles[i].weight /= weights_sum  # normalization
+
+        weights = np.array([np.log(self.particles[i].weight) for i in range(N)])
+        weights = weights - logsumexp(a=weights)
         for i in range(N):
-            self.particles[i].weight /= weights_sum  # normalization
+            self.particles[i].weight = np.exp(weights[i])  # normalization
+        
 
         return np.argmax(weights)
 

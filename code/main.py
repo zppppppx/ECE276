@@ -5,9 +5,9 @@ from slam import SLAM
 from tqdm import tqdm
 from Config import *
 
-for dataset in [20, 21]:
+for dataset in [21]:
 # Initialize the dataset and slam class
-    print("########## SLAM on dataset %d with %d particles #########"%(dataset, N))
+    print("########## SLAM on dataset %d with %d particles grid %d theta %d #########"%(dataset, N, cpr_grid, theta_range))
     Hokuyo_Path = "./data/Hokuyo%d.npz" % dataset
     Encoders_Path = "./data/Encoders%d.npz" % dataset
     IMU_Path = "./data/Imu%d.npz" % dataset
@@ -70,7 +70,7 @@ for dataset in [20, 21]:
     trajectory = positions.copy()
 
 
-    np.savez('./results/d%d_N%d.npz'%(dataset, N), poses = poses,
+    np.savez('./results/d%d_N%d_g%d_th%d.npz'%(dataset, N, cpr_grid, theta_range), poses = poses,
             oc_map=slam.occupancy_map, map_ranges=slam.ranges, trajectory=trajectory, grid_scale=grid_scale)
     
 
@@ -82,7 +82,7 @@ for dataset in [20, 21]:
     positions[1] /= grid_scale
 
     plt.plot(positions[1, :], positions[0, :], '')
-    plt.savefig("./figs/slam_d%d_N%d"%(dataset, N), bbox_inches='tight', pad_inches=0.5)
+    plt.savefig("./figs/slam_d%d_N%d_g%d_th%d"%(dataset, N, cpr_grid, theta_range), bbox_inches='tight', pad_inches=0.5)
     # plt.show()
 
     
