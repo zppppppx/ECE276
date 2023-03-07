@@ -6,6 +6,7 @@ from tqdm import tqdm
 from Config import *
 
 for dataset in [21]:
+    # plt.ion()
 # Initialize the dataset and slam class
     print("########## SLAM on dataset %d with %d particles grid %d theta %d #########"%(dataset, N, cpr_grid, theta_range))
     Hokuyo_Path = "./data/Hokuyo%d.npz" % dataset
@@ -25,7 +26,7 @@ for dataset in [21]:
     T_speed = slam.encoder_stamps.size
     positions = np.zeros([3, 1])
     poses = np.diag([1,1,1]).astype(np.float64).reshape([3,3,1])
-    for i in tqdm((range(T_speed-1))):
+    for i in tqdm((range(400, T_speed-1))):
         # for each time span of adjacent linear velocity, we find corresponding angular velocity series that the 
         # first time span covers the timestamp beginning and the last time span covers the ending
         w_time_start = w_time_end
@@ -62,6 +63,15 @@ for dataset in [21]:
         # print(slam.particles[ind].position)
 
         # check the weights and resample the particles
+        if(i % 30 == 29):
+            plt.figure(figsize=(8, 8))
+            plt.imshow(slam.occupancy_map)
+            plt.show()
+            plt.plot((positions[1, :] - slam.ranges[1, 0] * grid_scale)/grid_scale, (positions[0, :] - slam.ranges[0, 0] * grid_scale)/grid_scale, '')
+            # input()
+            plt.savefig('./process/d%d_ind%d'%(dataset, i))
+            plt.close()
+            plt.clf()
         
     slam.occupancy_map[np.where(slam.occupancy_odds > 0)] = 1
     slam.occupancy_map[np.where(slam.occupancy_odds < 0)] = 0

@@ -116,7 +116,7 @@ def mapCorrelation(im, grid_scale, ranges, vp, position):
     # ar = np.random.normal(0, grid_scale, cpr_grid)
     ys = ys + ar
 
-    theta_ar = np.arange(-theta_mid, theta_mid+1) * theta_delta
+    # theta_ar = np.arange(-theta_mid, theta_mid+1) * theta_delta
     nxs = xs.size
     nys = ys.size
     ntheta = theta_ar.size

@@ -12,8 +12,8 @@ inner_width = 0.31115 # the width between the innner surface of two parallel whe
 L = (outer_width + inner_width) / 2 # the length of axle
 
 grid_scale = 0.1
-lambda_max = np.log(4) * 5
-lambda_min = -np.log(4) * 5
+lambda_max = np.log(4) * 3
+lambda_min = -np.log(4) * 6
 
 freq = 12
 ranges = [40, 40]
@@ -35,11 +35,12 @@ shift_matrix = np.concatenate([xsv[:,:,None], ysv[:,:,None]], axis=2)
 shift_matrix = shift_matrix.reshape([2, -1])
 shift_matrix = np.concatenate([shift_matrix, np.zeros([1, shift_matrix.shape[-1]])], axis=0)
 
-theta_range = 3#9
+theta_range = 9#9
 theta_mid = int(theta_range/2)
 theta_delta = 1 / 180 * np.pi
+theta_ar = np.array([-10, -5, -3, -1, 0, 1, 3, 5, 10])
 
-N = 125 # the number of the particles
+N = 60 # the number of the particles
 Neff_threshold = 0.2 * N
 
 # the standard deviation of the norm distribution for velocity and angular velocity
@@ -61,4 +62,5 @@ bRr = np.array([[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [
 
 if __name__ == "__main__":
     print(shift_matrix.shape)
+    print(np.log(4), -np.log(4))
     
