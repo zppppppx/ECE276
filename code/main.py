@@ -7,7 +7,8 @@ from tqdm import tqdm
 if __name__ == '__main__':
 
 	# Load the measurements
-	filename = "./data/10.npz"
+	dataset = '10'
+	filename = "./data/%s.npz"%dataset
 	t,features,linear_velocity,angular_velocity,K,b,imu_T_cam = load_data(filename)
 	features = features.transpose([2, 1, 0])
 	Ks = calc_Ks(K, b)
@@ -17,20 +18,22 @@ if __name__ == '__main__':
 	idx = obs_times.argsort()[::-1]
 	print(idx.shape)
 	
-	print("max obs times", obs_times[idx[0]], "min obs times", obs_times[idx[2000]])
+	print("max obs times", obs_times[idx[0]], "min obs times", obs_times[idx[-1]])
 	features = features[:, idx[:M], :]
 	features = np.asarray(features, order='C')
 
 	gvs = np.r_["0", linear_velocity, angular_velocity].T
 	# print(gvs.shape)
 	u_hats = axangle2twist(gvs)
+	u_curlys = axangle2adtwist(gvs)
 	# print(t.shape, features.shape, linear_velocity.shape, angular_velocity.shape, K.shape, b, imu_T_cam.shape)
 
 	T = t.size
 	n_features = features.shape[1]
-	mu_lmks = np.full([T, n_features, 4], np.nan)
-	# Sigma_lmks = np.zeros([T, n_features, 3, 3])
-	Sigma_lmks = np.eye(3*n_features) * 0.01
+	mu_lmks = np.full([n_features, 4], np.nan)
+	Sigma_pose0 = np.eye(6) * sigma_pose
+	Sigma = np.eye(3*n_features + 6) * 0.01
+	Sigma[:6, :6] = Sigma_pose0
 	
 	# for i in range(n_features):
 	# 	Sigma_lmks[0, i] = np.eye(3) * 0.01
@@ -40,30 +43,32 @@ if __name__ == '__main__':
 		      			 [0, -1, 0, 0],
 						 [0, 0, -1, 0],
 						 [0, 0, 0, 1]], dtype=np.float64)
+	# poses[0] = np.eye(4).astype(np.float64)
 
 	
 	
 	# for i in tqdm(range(1, T)):
 	# # for i in range(1, 100):
 	# 	u_hat = u_hats[i-1]
+	# 	u_curly = u_curlys[i-1]
 	# 	# print(u_hat)
 	# 	tau = t[0, i]- t[0, i-1] 
 	# 	# print(tau)
 	# 	poses[i] = predict_pose(poses[i-1], tau, u_hat)
-	# 	# print(poses[i])
-	# 	# print(mu_lmks[i-1].shape, Sigma_lmks[i-1].shape, features[i].shape, poses[i].shape, Ks.shape, K.shape, b.shape, imu_T_cam.shape)
-	# 	# print(mu_lmks[i-1].dtype, Sigma_lmks[i-1].dtype, features[i].dtype, poses[i].dtype, Ks.dtype, K.dtype, b.dtype, imu_T_cam.dtype)
-	# 	# print(mu_lmks[i, 0])
+	# 	predict_noise = np.random.normal(0, 1, [6, 6]) * sigma_pose
+	# 	# Sigma[:6, :6] = predict_Sigma(Sigma[:6, :6], tau, u_curly, noise=predict_noise)
+	# 	Sigma = predict_Sigma_all(Sigma, tau, u_curly, predict_noise)
 
-	# 	mu_lmks[i], Sigma_lmks[i] = update_lmk(mu_lmks[i-1], Sigma_lmks[i-1], features[i], poses[i], Ks, K, np.float64(b), imu_T_cam)
-	# 	# print(mu_lmks[i, 0])
+	# 	poses[i], mu_lmks, Sigma = update_slam_ekf(mu_lmks, Sigma, features[i], poses[i], Ks, K, b, imu_T_cam)
+
+	# 	if i % 20 == 19:
+	# 		fig, ax = visualize_feature_points_2d(mu_lmks, poses[:i], show=False)
+	# 		fig.savefig('./process_slam/%s_slam_ekf_%d'%(dataset, i))
+	# 		plt.close(fig)
 		
+	# fig, ax = visualize_feature_points_2d(mu_lmks, poses)
+	# fig.savefig('./figs/%s_ekf_slam'%dataset)
 
-	# # dead_reckoning_visualize(t, linear_velocity, angular_velocity)
-	# # visualize_trajectory_2d(poses)
-
-	# visualize_feature_points_2d(mu_lmks[-1], poses)
-	# print(poses[[0, 1000, 2000]])
 
 
 
@@ -74,16 +79,19 @@ if __name__ == '__main__':
 
 
 	# for i in range(1, T):
+	Sigma_lmks = np.eye(n_features*3) * 0.1
 	for i in tqdm(range(1, T)):
 		u_hat = u_hats[i-1]
 		# print(u_hat)
 		tau = t[0, i]- t[0, i-1] 
 		# print(tau)
 		poses[i] = predict_pose(poses[i-1], tau, u_hat)
-		mu_lmks[i], Sigma_lmks = update_lmk_ekf(mu_lmks[i-1], Sigma_lmks, features[i], poses[i], Ks, K, np.float64(b), imu_T_cam)
+		mu_lmks, Sigma_lmks = update_lmk_ekf(mu_lmks, Sigma_lmks, features[i], poses[i], Ks, K, np.float64(b), imu_T_cam)
+		if i % 30 == 29:
+			fig, ax = visualize_feature_points_2d(mu_lmks, poses[:i], show=False)
+			fig.savefig('./process_mapping/%s_mapping_ekf_%d'%(dataset, i))
+			plt.close(fig)
 
-
-	visualize_feature_points_2d(mu_lmks[-1], poses)
 
 
 

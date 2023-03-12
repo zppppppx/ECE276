@@ -36,6 +36,34 @@ def predict_Sigma(Sigma: np.ndarray, tau: float, u_curly: np.ndarray, noise=None
 
     return Sigma
 
+
+def predict_Sigma_all(Sigma: np.ndarray, tau: float,u_curly: np.ndarray, noise=None) -> np.ndarray:
+    """
+    Renew the whole Sigma Sigma = [[Sigma_pose, Cov_pose_lmk], [Cov_lmk_pose, Sigma_lmk]]
+    """
+    F = expm(-tau*u_curly)
+    Sigma_predicted = Sigma.copy()
+    if noise is None:
+        noise = np.zeros([6, 6])
+
+    Sigma_predicted[:6, :6] = F @ Sigma[:6, :6] @ expm(-tau*u_curly).T + noise
+    Sigma_predicted[:6, 6:] = F @ Sigma[:6, 6:]
+    Sigma_predicted[6:, :6] = Sigma[6:, :6] @ F.T
+
+    return Sigma_predicted
+
+
+
+
+
+
+
+
+
+
+
+
+
 def dead_reckoning_visualize(time_stamps: np.ndarray, linear_velocity: np.ndarray, angular_velocity: np.ndarray, 
                    mu0: np.ndarray=np.eye(4), Sigma0: np.ndarray=np.eye(6)*0.001):
     gv = np.concatenate([linear_velocity, angular_velocity], axis=0).T # general velocity N*6

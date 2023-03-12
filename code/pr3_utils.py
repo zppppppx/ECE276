@@ -44,8 +44,23 @@ def load_data(file_name):
 
     return t, features, linear_velocity, angular_velocity, K, b, imu_T_cam
 
+def visualize_multiple_trajectories_2d(**kwargs):
+    fig, ax = plt.subplots(figsize=(5, 5))
+    for label, poses in kwargs.items():
+        ax.plot(poses[:, 0, 3], poses[:, 1, 3], label=label)
+        ax.scatter(poses[0, 0, 3], poses[0, 1, 3], marker='s', label=label+"_start")
+        ax.scatter(poses[-1, 0, 3], poses[-1, 1, 3], marker='o', label=label+"_end")
 
-def visualize_feature_points_2d(mu_lmks, poses=None, cutoff=5000):
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.axis('equal')
+    ax.grid(False)
+    ax.legend()
+    plt.show(block=True)
+
+    return fig, ax
+
+def visualize_feature_points_2d(mu_lmks, poses=None, cutoff=5000, show=True):
     '''
     function to visualize the feature poinst in 2D
 
@@ -54,20 +69,22 @@ def visualize_feature_points_2d(mu_lmks, poses=None, cutoff=5000):
       cutoff: how many points to show for each time
     '''
     fig, ax = plt.subplots(figsize=(5, 5))
-    print("########## Plotting the features ###########")
-    # for i in tqdm(range(mu_lmks.shape[0])):
 
     valid_points = mu_lmks[~np.isnan(mu_lmks).any(axis=1)]
     
     random_index = np.random.permutation(valid_points.shape[0])[:cutoff]
-    # print(valid_points.shape)
 
     ax.scatter(valid_points[random_index, 0], valid_points[random_index, 1], c='b', marker='.', s=2)
 
     if poses is not None:
         ax.plot(poses[:, 0, 3], poses[:, 1, 3], 'r-')
 
-    plt.show(block=True)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.axis('equal')
+    ax.grid(False)
+    if show:
+        plt.show(block=True)
 
     return fig, ax
 
@@ -133,7 +150,7 @@ def dpi_dq(q):
         [0, 1, -q[1] / q[2], 0.],
         [0., 0., 0., 0.],
         [0., 0., -q[3] / q[2], 1.]
-    ]).astype(np.float64)
+    ]).astype(np.float64) / q[2]
 
 
 def projection(ph):
@@ -194,7 +211,25 @@ def axangle2skew(a):
     S[..., 2, 2].fill(0)
     return S
 
+@njit
+def angle2skew(q):
+    assert q.shape == (3, )
+    return np.array([[0, -q[2], q[1]],
+                     [q[2], 0, -q[0]],
+                     [-q[1], q[0], 0]], dtype=np.float64)
 
+@njit
+def angle2twist(x):
+    """
+    Velocity to twist
+    """
+    assert x.shape == (6, )
+    return np.array([[0., -x[5], x[4], x[0]],
+                     [x[5], 0., -x[3], x[1]],
+                     [-x[4], x[3], 0., x[2]],
+                     [0.,   0.,    0.,  0. ]], dtype=np.float64)
+
+@njit
 def axangle2twist(x):
     '''
     @Input:
@@ -277,6 +312,12 @@ def axangle2pose(x):
     '''
     return twist2pose(axangle2twist(x))
 
+def angle2pose(x: np.ndarray):
+    assert x.shape == (6, )
+    return np.array([[0., -x[5], x[4], x[0]],
+                     [x[5], 0., -x[3], x[1]],
+                     [-x[4], x[3], 0., x[2]],
+                     [0.,   0.,    0.,  1. ]], dtype=np.float64)
 
 def pose2adpose(T):
     '''
@@ -298,3 +339,17 @@ def calc_Ks(K, b):
     ))
     return Ks
 
+@njit
+def cdot_hat(q):
+    assert q.shape == (4, )
+    s = q[:3]
+    s_skew = angle2skew(s)
+    res = np.hstack((np.eye(3), -s_skew))
+    res = np.vstack((res, np.zeros((1, 6))))
+
+    return res
+
+if __name__ == "__main__":
+    a = np.random.randn(6)
+    b = axangle2twist(a)
+    print(b.shape)

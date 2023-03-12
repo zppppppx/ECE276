@@ -7,12 +7,21 @@ dq = dpi_dq(q)
 # q = pi(q)
 
 # print(q)
-
-a = np.random.randn(5,3)
-a = np.zeros([5,3])
-# a[0] = np.nan
-# print(a[:100])
-print((a == 0).all(axis=1))
+@njit
+def vstack(a):
+    a = tuple(a)
+    return np.vstack(a)
 
 # index = np.isnan(a).any(axis=1)
 # print(index)
+
+a = np.random.rand(5,2)
+print(a)
+print(a.reshape((-1)))
+
+
+a = np.arange(625).reshape((25,25))
+index = np.arange(5)
+b = a[index[:, np.newaxis], index]
+print(b)
+
