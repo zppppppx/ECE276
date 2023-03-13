@@ -65,18 +65,20 @@ def predict_Sigma_all(Sigma: np.ndarray, tau: float,u_curly: np.ndarray, noise=N
 
 
 def dead_reckoning_visualize(time_stamps: np.ndarray, linear_velocity: np.ndarray, angular_velocity: np.ndarray, 
-                   mu0: np.ndarray=np.eye(4), Sigma0: np.ndarray=np.eye(6)*0.001):
+                   mu0: np.ndarray=np.eye(4)):
     gv = np.concatenate([linear_velocity, angular_velocity], axis=0).T # general velocity N*6
 
     u_hats = axangle2twist(gv)
     # u_curlys = axangle2adtwist(gv)
 
     time_intervals = time_stamps[0, 1:] - time_stamps[0, :-1]
-    poses = mu0[..., None]
+    poses = mu0[None]
 
     for i in range(time_intervals.size):
         tau = time_intervals[i]
-        pose = predict_pose(poses[..., -1], tau, u_hats[i])
-        poses = np.concatenate([poses, pose[..., None]], axis=2)
+        pose = predict_pose(poses[-1], tau, u_hats[i])
+        poses = np.concatenate([poses, pose[None]], axis=0)
 
-    visualize_trajectory_2d(poses)
+    fig, ax = visualize_trajectory_2d(poses)
+
+    return poses, fig, ax

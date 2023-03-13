@@ -61,8 +61,8 @@ def update_lmk(mu_lmk: np.ndarray, Sigma_lmk: np.ndarray, feature: np.ndarray, p
         H = Ks @ dpi_dq(lmk_coordinates_cam) @ cam_T_world @ P.T
 
         # Calculate the kalman gain
-        v_diag = np.random.normal(loc=0, scale=sigma_v, size=(4))
-        V = np.diag(v_diag ** 2)
+        # v_diag = np.random.normal(loc=0, scale=sigma_v, size=(4))
+        # V = np.diag(v_diag ** 2)
         Kg = Sigma_lmk[i] @ H.T @ inv(H @ Sigma_lmk[i] @ H.T + V)
         # print(Kg.shape)
         mu_lmk_next[i] = mu_lmk[i] + P.T @ Kg @ (zi - zi_tilde)
@@ -98,23 +98,10 @@ def update_lmk_ekf(mu_lmk: np.ndarray, Sigma_lmk: np.ndarray, feature: np.ndarra
     world_T_cam = pose @ imu_T_cam
     cam_T_world = inv(world_T_cam)
     
-
-    # index_observed = np.all(feature != -1, axis=1)
-    # (feature != -1).all(axis=1) # find the indexes that indexes are observed
-    # print(np.where(index_observed==True)[0].shape)
-    # index_notnan = ~np.isnan(mu_lmk).any(axis=1)
-    # index_update = np.logical_and(index_observed, index_notnan)
-    # index_update = np.where((~np.isnan(mu_lmk).all(axis=1)) & (feature != -1).all(axis=1))[0]
     index_update = np.where((~np.isnan(mu_lmk[:, 0])) & (feature[:, 0] != -1))[0]
-    # print(index_update.shape)
-
-
-    # index_initialize = np.logical_and(index_observed, np.isnan(mu_lmk).any(axis=1))
-    # index_initialize = np.where((feature != -1) & np.isnan(mu_lmk))[0]
     index_initialize = np.where(np.isnan(mu_lmk[:, 0]) & (feature[:, 0] != -1))[0]
-    # index_initialize = np.where(index_initialize)[0]
-    mu_lmk_initialize = mu_lmk[index_initialize]
 
+    mu_lmk_initialize = mu_lmk[index_initialize]
     feature_initialize = feature[index_initialize]
     
     # Initialize the observed but with-no-previous-state points 
@@ -135,9 +122,11 @@ def update_lmk_ekf(mu_lmk: np.ndarray, Sigma_lmk: np.ndarray, feature: np.ndarra
 
 
     # print(np.where(index_initialize==True)[0].shape)
-    z_cur = feature[index_update].reshape((-1, 1))
+    z = feature[index_update].reshape((-1, 1))
     # Nt = np.where(index_update==True)[0].size
     Nt = index_update.size
+    if Nt == 0:
+        return mu_lmk_next, Sigma_lmk_next
 
     M = feature.shape[0]
     # print(Nt, index_valid)
@@ -153,22 +142,27 @@ def update_lmk_ekf(mu_lmk: np.ndarray, Sigma_lmk: np.ndarray, feature: np.ndarra
         # calculate the Jacobian matrix of the observation model
         Ht[4*i:4*i+4, 3*j:3*j+3] = Ks @ dpi_dq(lmk_coordinates_cam) @ cam_T_world @ P.T
 
+    # a = np.mean((z-z_tilde)**2)
+    # print(a)
+    # print(z[:4], z_tilde[:4])
+    # print(np.isnan(z_tilde).any(), np.isnan(z).any())
+
     if Nt != 0:
-        v_diag = np.random.normal(loc=0, scale=sigma_v, size=(4*Nt))
-        V = np.diag(v_diag ** 2)
+        # v_diag = np.random.normal(loc=0, scale=sigma_v, size=(4*Nt))
+        # V = np.diag(v_diag ** 2)
 
         # print(Ht.shape, Sigma_lmk_next.shape, V.shape)
-        Kt = Sigma_lmk_next @ Ht.T @ inv(Ht @ Sigma_lmk_next @ Ht.T + V)
-        mu_t = np.ascontiguousarray(mu_lmk_next.copy()[:, :3])
+        Kt = Sigma_lmk @ Ht.T @ inv(Ht @ Sigma_lmk @ Ht.T + np.kron(np.eye(Nt), V))
+        # mu_t = np.ascontiguousarray(mu_lmk_next.copy()[:, :3])
         mu_t = mu_t.reshape((-1, 1))
         
         # print('mu_t', mu_t.shape, Kt.shape, z_cur.shape, z_tilde.shape)
-        mu_next = mu_t + Kt @ (z_cur - z_tilde)
+        mu_next = mu_t + Kt @ (z - z_tilde)
         
         mu_lmk_next[index_update, :3] = mu_next.reshape((-1, 3))[index_update] # renew the mean of landmarks
         Sigma_next = (np.eye(3*M) - Kt @ Ht) @ Sigma_lmk_next
         indexes_update = 3 * index_update
-        indexes_update = np.hstack((indexes_update, indexes_update+1, indexes_update+2))
+        indexes_update = np.concatenate((indexes_update, indexes_update+1, indexes_update+2))
         Sigma_lmk_next[indexes_update[:, np.newaxis], indexes_update] = Sigma_next[indexes_update[:, np.newaxis], indexes_update]
 
 
@@ -224,8 +218,10 @@ def update_pose_ekf(mu_predicted: np.ndarray, Sigma_pose: np.ndarray, feature: n
         # Ht.append(Hti)
         Ht[4*i:4*i+4] = Hti
 
-    v_diag = np.random.normal(loc=0, scale=sigma_v, size=(4))
-    V = np.diag(v_diag ** 2)
+    
+
+    # v_diag = np.random.normal(loc=0, scale=sigma_v, size=(4))
+    # V = np.diag(v_diag ** 2)
     Kt = Sigma_pose @ Ht.T @ inv(Ht @ Sigma_pose @ Ht.T + np.kron(np.eye(Nt), V))
     mu_updated = mu_predicted @ expm(angle2twist(Kt @ (z - z_tilde)))
     Sigma_pose_updated = (np.eye(6) - Kt @ Ht) @ Sigma_pose
@@ -271,7 +267,7 @@ def update_slam_ekf(mu_lmk: np.ndarray, Sigma: np.ndarray, feature: np.ndarray, 
     index_update = np.where((~np.isnan(mu_lmk[:, 0])) & (feature[:, 0] != -1))[0]
     # print(index_update.shape)
 
-    index_initialize = np.where((feature[:, 0] != -1) & np.isnan(mu_lmk[:, 0]))[0]
+    index_initialize = np.where(np.isnan(mu_lmk[:, 0]) & (feature[:, 0] != -1))[0]
     mu_lmk_initialize = mu_lmk[index_initialize]
 
     feature_initialize = feature[index_initialize]
@@ -309,6 +305,8 @@ def update_slam_ekf(mu_lmk: np.ndarray, Sigma: np.ndarray, feature: np.ndarray, 
         Hti_lmk = Ks @ dpi_dq(lmk_coordinates_cam) @ cam_T_world @ P.T
         Ht_lmk[4*i:4*i+4, 3*j:3*j+3] = Hti_lmk
 
+    # print(np.mean((z-z_tilde)**2))
+
     Ht = np.concatenate((Ht_pose, Ht_lmk), axis=1)
     # v_diag = np.random.normal(loc=0, scale=sigma_v, size=(4))
     # V = np.diag(v_diag ** 2)
@@ -321,11 +319,8 @@ def update_slam_ekf(mu_lmk: np.ndarray, Sigma: np.ndarray, feature: np.ndarray, 
     mu_lmk_updated[index_update, :3] = mu_next[index_update]
     Sigma_next = (np.eye(6+3*M) - Kt @ Ht) @ Sigma
     sigma_update_indexes = 3 * index_update + 6
-    sigma_update_indexes = np.concatenate((sigma_update_indexes, sigma_update_indexes+1, sigma_update_indexes+2))
-    Sigma_updated[:6, sigma_update_indexes] = Sigma_next[:6, sigma_update_indexes]
-    Sigma_updated[sigma_update_indexes, :6] = Sigma_next[sigma_update_indexes, :6]
-    Sigma_updated[:6, :6] = Sigma_next[:6, :6]
-
+    sigma_update_indexes = np.concatenate((sigma_update_indexes, sigma_update_indexes+1, 
+                                           sigma_update_indexes+2, np.arange(6)))
     Sigma_updated[sigma_update_indexes[:, np.newaxis], sigma_update_indexes] \
                 = Sigma_next[sigma_update_indexes[:, np.newaxis], sigma_update_indexes]
 

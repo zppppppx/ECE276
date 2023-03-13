@@ -17,6 +17,7 @@ if __name__ == '__main__':
 	obs_times = t.shape[0] - np.sum(np.all(features == [-1, -1, -1, -1], axis=2), axis=0)
 	idx = obs_times.argsort()[::-1]
 	print(idx.shape)
+	M = 10000
 	
 	print("max obs times", obs_times[idx[0]], "min obs times", obs_times[idx[-1]])
 	features = features[:, idx[:M], :]
@@ -31,19 +32,19 @@ if __name__ == '__main__':
 
 	T = t.size
 	n_features = features.shape[1]
-	mu_lmks = np.full([T, n_features, 4], np.nan)
-	Sigma_lmks = np.zeros([T, n_features, 3, 3])
-	Sigma_pose = np.eye(6) * sigma_pose
+	# mu_lmks = np.full([T, n_features, 4], np.nan)
+	# Sigma_lmks = np.zeros([T, n_features, 3, 3])
+	# Sigma_pose = np.eye(6) * sigma_pose
 	
-	for i in range(n_features):
-		Sigma_lmks[0, i] = np.eye(3) * sigma_lmk
+	# for i in range(n_features):
+	# 	Sigma_lmks[0, i] = np.eye(3) * sigma_lmk
 
 	poses = np.zeros([T, 4, 4])
 	poses[0] = np.array([[1, 0, 0, 0],
 		      			 [0, -1, 0, 0],
 						 [0, 0, -1, 0],
 						 [0, 0, 0, 1]], dtype=np.float64)
-	poses[0] = np.eye(4).astype(np.float64)
+	# poses[0] = np.eye(4).astype(np.float64)
 
 	
 	pose_res = []
@@ -55,7 +56,11 @@ if __name__ == '__main__':
 	for i in range(n_features):
 		Sigma_lmks[i] = np.eye(3) * sigma_lmk
 	poses = np.zeros([T, 4, 4])
-	poses[0] = np.eye(4).astype(np.float64)
+	poses[0] = np.array([[1, 0, 0, 0],
+		      			 [0, -1, 0, 0],
+						 [0, 0, -1, 0],
+						 [0, 0, 0, 1]], dtype=np.float64)
+	# poses[0] = np.eye(4).astype(np.float64)
 	for i in tqdm(range(1, T)):
 	# for i in range(1, 100):
 		u_hat = u_hats[i-1]
@@ -68,7 +73,7 @@ if __name__ == '__main__':
 	print(mu_lmks[:, 3])
 
 	pose_res.append(poses)
-	fig, ax = visualize_feature_points_2d(mu_lmks, poses)
+	fig, ax = visualize_feature_points_2d(mu_lmks, poses, show=False)
 	fig.savefig('./figs/%s_deadreckoning'%dataset)
 
 	# This is the approximate way to update the landmarks and pose separately
@@ -79,7 +84,11 @@ if __name__ == '__main__':
 		Sigma_lmks[i] = np.eye(3) * sigma_lmk
 	Sigma_pose = np.eye(6) * 0.01
 	poses = np.zeros([T, 4, 4])
-	poses[0] = np.eye(4).astype(np.float64)
+	# poses[0] = np.eye(4).astype(np.float64)
+	poses[0] = np.array([[1, 0, 0, 0],
+		      			 [0, -1, 0, 0],
+						 [0, 0, -1, 0],
+						 [0, 0, 0, 1]], dtype=np.float64)
 	for i in tqdm(range(1, T)):
 	# for i in range(1, 100):
 		u_hat = u_hats[i-1]
