@@ -60,7 +60,7 @@ def visualize_multiple_trajectories_2d(**kwargs):
 
     return fig, ax
 
-def visualize_feature_points_2d(mu_lmks, poses=None, cutoff=5000, show=True):
+def visualize_feature_points_2d(mu_lmks, poses=None, cutoff=10000, show=True):
     '''
     function to visualize the feature poinst in 2D
 
@@ -341,13 +341,42 @@ def calc_Ks(K, b):
 
 @njit
 def cdot_hat(q):
-    assert q.shape == (4, )
+    assert q.shape == (4, ) and np.abs(q[3] - 1) < 1e-3
     s = q[:3]
     s_skew = angle2skew(s)
     res = np.hstack((np.eye(3), -s_skew))
     res = np.vstack((res, np.zeros((1, 6))))
 
     return res
+
+
+def feature_downsample(features, K, b, min=20, max=80):
+    T = features.shape[0]
+    valid_indexes = []
+    for i in range(T):
+        feature_t = features[i].copy()
+        valid_index = np.where(feature_t[:, 0] != -1)[0]
+        feature_t = feature_t[valid_index]
+        disparity = feature_t[:, 0] - feature_t[:, 2]
+        z0 = K[0, 0] * b / disparity
+        pixel_coor = np.ones((feature_t.shape[0], 3))
+        pixel_coor[:, :2] = feature_t[:, :2]
+        
+        cam_coor = z0 * np.linalg.inv(K).dot(pixel_coor.T)
+        distances = np.sqrt(np.sum(cam_coor**2, axis=0))
+        # print(distances[:3])
+
+        valid_index = valid_index[np.where((distances >= min) & (distances <= max))]
+
+        # print(feature_t.shape, z0.shape, pixel_coor.shape, cam_coor.shape, distances.shape, valid_index.shape)
+
+
+        valid_indexes.append(valid_index)
+
+    valid_indexes = np.hstack(valid_indexes)
+    return np.unique(valid_indexes)
+
+
 
 if __name__ == "__main__":
     a = np.random.randn(6)

@@ -46,7 +46,7 @@ def predict_Sigma_all(Sigma: np.ndarray, tau: float,u_curly: np.ndarray, noise=N
     if noise is None:
         noise = np.zeros([6, 6])
 
-    Sigma_predicted[:6, :6] = F @ Sigma[:6, :6] @ expm(-tau*u_curly).T + noise
+    Sigma_predicted[:6, :6] = F @ Sigma[:6, :6] @ F.T + noise
     Sigma_predicted[:6, 6:] = F @ Sigma[:6, 6:]
     Sigma_predicted[6:, :6] = Sigma[6:, :6] @ F.T
 
