@@ -285,8 +285,8 @@ def update_slam_ekf(mu_lmk: np.ndarray, Sigma: np.ndarray, feature: np.ndarray, 
         distance.append(np.sqrt(np.sum(lmk_coordinates_cam**2-1)))
         mu_lmk_initialize[i] = world_T_cam @ lmk_coordinates_cam
 
-    if(len(distance) != 0):
-        print("Initialization max and minimum distances", max(distance), min(distance))
+    # if(len(distance) != 0):
+    #     print("Initialization max and minimum distances", max(distance), min(distance))
                     
 
     mu_lmk_updated[index_initialize] = mu_lmk_initialize

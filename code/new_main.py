@@ -7,7 +7,7 @@ from tqdm import tqdm
 if __name__ == '__main__':
 
 	# Load the measurements
-	dataset = '10'
+	dataset = '03'
 	filename = "./data/%s.npz"%dataset
 	t,features,linear_velocity,angular_velocity,K,b,imu_T_cam = load_data(filename)
 	features = features.transpose([2, 1, 0])
@@ -73,7 +73,7 @@ if __name__ == '__main__':
 	print(mu_lmks[:, 3])
 
 	pose_res.append(poses)
-	fig, ax = visualize_feature_points_2d(mu_lmks, poses, show=False)
+	fig, ax = visualize_feature_points_2d(mu_lmks, poses, show=True)
 	fig.savefig('./figs/%s_deadreckoning'%dataset)
 
 	# This is the approximate way to update the landmarks and pose separately
@@ -84,11 +84,12 @@ if __name__ == '__main__':
 		Sigma_lmks[i] = np.eye(3) * sigma_lmk
 	Sigma_pose = np.eye(6) * 0.01
 	poses = np.zeros([T, 4, 4])
-	# poses[0] = np.eye(4).astype(np.float64)
 	poses[0] = np.array([[1, 0, 0, 0],
 		      			 [0, -1, 0, 0],
 						 [0, 0, -1, 0],
 						 [0, 0, 0, 1]], dtype=np.float64)
+	# poses[0] = np.eye(4).astype(np.float64)
+	
 	for i in tqdm(range(1, T)):
 	# for i in range(1, 100):
 		u_hat = u_hats[i-1]

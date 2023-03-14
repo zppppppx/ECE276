@@ -6,22 +6,13 @@ dq = dpi_dq(q)
 
 # q = pi(q)
 
-# print(q)
-@njit
-def vstack(a):
-    a = tuple(a)
-    return np.vstack(a)
+# poses = np.array([[1, 0, 0, 0],
+# 		      			 [0, -1, 0, 0],
+# 						 [0, 0, -1, 0],
+# 						 [0, 0, 0, 1]], dtype=np.float64)
 
-# index = np.isnan(a).any(axis=1)
-# print(index)
+# print(inversePose(poses))
 
-a = np.random.rand(5,2)
-print(a)
-print(a.reshape((-1)))
-
-
-a = np.arange(625).reshape((25,25))
-index = np.arange(5)
-b = a[index[:, np.newaxis], index]
-print(b)
-
+a = np.arange(25)
+print(a.reshape((5,5), order='F'))
+print(a.reshape((5,5)))
