@@ -13,6 +13,14 @@ if __name__ == '__main__':
 	features = features.transpose([2, 1, 0])
 	Ks = calc_Ks(K, b)
 
+	to_body = np.array([[1, 0, 0],
+						[0, -1, 0],
+						[0, 0, -1]], dtype=np.float64)
+	linear_velocity = to_body @ linear_velocity
+	angular_velocity = to_body @ angular_velocity
+
+	print(linear_velocity[:, [10, 100, 500, 1000 ]])
+
 	# print(Ks, '\n', K)
 	obs_times = t.shape[0] - np.sum(np.all(features == [-1, -1, -1, -1], axis=2), axis=0)
 	idx = obs_times.argsort()[::-1]
@@ -108,6 +116,6 @@ if __name__ == '__main__':
 	fig.savefig('./figs/%s_ekfUpdate'%dataset)
 	
 	fig, ax = visualize_multiple_trajectories_2d(dead_reckoning=pose_res[0], ekf=pose_res[1])
-	fig.savefig('./figs/%s_comarison'%dataset)
+	fig.savefig('./figs/%s_comparison'%dataset)
 
 

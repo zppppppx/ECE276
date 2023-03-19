@@ -150,27 +150,196 @@ The former two updates both assume other contions are correct and static. Howeve
 the pose and the landmarks are correlated in the process. And the former two updates would lose the covariance information
 between the pose and the landmarks.
 
+To update the pose and landmarks' means simultaneously, we need to stack the pose's mean and the landmarks' means. Thus, we 
+will have a vector $\mu \in \mathbb{R}^{6 + 3M}$, where 6 represents the robot's position and orientation, and $3M$ represents
+the flattened M landmarks' positions. To calculate parameters $H_t$, we just need to separately calculate $H_t^{pose}$ and 
+$H_t^{landmarks}$ following the former two parts 
+and stack them to form $H_t \in \mathbb{R}^{4N_t\times (6+3M)}$. All other parameters are formed in the 
+same way. In the final update step, we could split the residual term $K_{t+1}(z_{t+1} - \tilde{z}_{t+1})$ into two parts 
+corresponding to the pose mean and the landmarks mean.
+
 \subsection{Some More Details}
-\textbf{The initialization of $\boldsymbol{q}_T$}: considering the fact that $\boldsymbol{q}_T$ is initialized using
-motion model, the loss related to motion model is very small at first, and the gradient could become NAN. Thus, when
-initializing $\boldsymbol{q}_T$, we added a small noise to it in order to make it bias from original value, so that
-NAN would not appear at the start and could better train the model.
+\subsubsection{\textbf{Noise}}
+The EKF is sensitive to noise settings. The reasonable magnitude for the motion noise variance should be $[1e^{-1}, 1e^{-5}]$
+and for observation noise variance should be $[1e^0, 1e^1]$. And the initial settings for pose $\Sigma_0$ should be very small 
+since we are pretty sure of the initial pose. and for landmarks, the magnitude should also be of $[1e^0, 1e^1]$.
 
-\textbf{Training}: when training the model, though we added a noise to $\boldsymbol{q}_T$ in initialization, the loss of
-the motion model is still very small. To balance the two loss a little bit, we multiplied the motion loss by 10.
-
-\textbf{Panorama}: when generating panorama, we changed the shape of the coordinates to $[3 \times (r \times c)]$ for
-acceleration of the calculation.
-
+\subsubsection{\textbf{Update}}
+When updating the landmarks' mean at time $t$, we only choose those entries that corresponds to the landmarks that are observed
+at time $t$. It is also the same after $\Sigma_{t+1|t+1}$ is obtained. We will only renew the entries related to 
+pose and observed landmarks.
 
 \section{Results}
-\subsection{Orientation Tracking}
-From the results, we can find out that for most of the datasets, angles of Roll and Pitch match with real data realtively
-well, but for Yaw, the shape of optimized results match with that of the real data, while the is a gap between them. One
-guess is that the accumulation of the error in Yaw could not be well eliminated.
+\subsection{Dead Reckoning}
+With only adopting prediction on the pose of the robot and updating the 
+positions of the landmarks, the obtained trajectories are as Fig.\ref{fig:dead_reckoning}. I first assume the landmarks 
+were completely independent.
 
-\subsection{Panorama}
-From the results we can tell that the pictures have the consistency in space, e.g. the connection of the handrail.
+\begin{figure}[htbp]
+    \centering
+    \subfigure[Dataset 03]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/03_deadreckoning.png}
+            % \caption{}
+        \end{minipage}%
+    }%
+
+    \subfigure[Dataset 10]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/10_deadreckoning.png}
+            % \caption{}
+        \end{minipage}
+    }%
+    \centering
+    \caption{Dead Reckoning with Updating Landmarks} \label{fig:dead_reckoning}
+\end{figure}
+
+We can see although at first the trajectories match well with ground truth, the results began to diverge in the middle
+expecially for dataset 10 which has more turnings.
+
+
+\subsubsection{Update the Landmarks}
+The results of mapping are as Fig.\ref{fig:mapping}
+
+With only updating the landmarks during deadreckoning, we could see that the landmarks sometimes change significantly in
+the process as in Fig.\ref{fig:mapping_process} because the pose of the robot is not corrected. In this process, I recovered
+the covariance between the landmarks.
+
+\begin{figure}[htbp]
+    \centering
+    \subfigure[Dataset 03]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/03_lmk_update.png}
+            % \caption{}
+        \end{minipage}%
+    }%
+
+    \subfigure[Dataset 10]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/10_lmk_update.png}
+            % \caption{}
+        \end{minipage}
+    }%
+    \centering
+    \caption{Mapping Only} \label{fig:mapping}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \subfigure[03 times-index 559]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../process_mapping03/03_mapping_ekf_559.png}
+            % \caption{}
+        \end{minipage}%
+    }%
+
+    \subfigure[03 times-index 599]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../process_mapping03/03_mapping_ekf_599.png}
+            % \caption{}
+        \end{minipage}
+    }%
+    \centering
+    \caption{Mapping Process} \label{fig:mapping_process}
+\end{figure}
+
+\subsubsection{Update Jointly}
+The results of updating jointly are as Fig.\ref{fig:slam_joint}. For dataset 03, the trajectory does not change
+so much due to shorter time and less turnings. But for dataset 10, the updated trajectory has changed significantly.
+We could see how the cumulative error could make a difference to the result.
+
+\begin{figure}[htbp]
+    \centering
+    \subfigure[Dataset 03]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/03_ekf_comparison_joint.png}
+            % \caption{}
+        \end{minipage}%
+    }%
+
+    \subfigure[Dataset 10]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/10_ekf_comparison_joint.png}
+            % \caption{}
+        \end{minipage}
+    }%
+    \centering
+    \caption{Update Jointly} \label{fig:slam_joint}
+\end{figure}
+
+
+\subsubsection{Update Separately}
+If we ignore the covariance between the robot pose and the landmarks, which means that we will not use the giant overall 
+mean vector and covariance matrix but two separate mean vectors and covariance matrices to represent the pose and landmarks
+respectively. Thus, we would lose some information during updating step. The final results are as Fig.\ref{fig:slam_separate}.
+The main difference between updating separately and jointly is the turning angle.
+
+From the discussion above, we can see that in EKF, covariance is very important. It stores the relationship between the 
+targets and observations. Ignoring such information, we could not get a good result.
+
+\begin{figure}[htbp]
+    \centering
+    \subfigure[Dataset 03]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/03_ekf_comparison_separate.png}
+            % \caption{}
+        \end{minipage}%
+    }%
+
+    \subfigure[Dataset 10]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/10_ekf_comparison_separate.png}
+            % \caption{}
+        \end{minipage}
+    }%
+    \centering
+    \caption{Update Separately} \label{fig:slam_separate}
+\end{figure}
+
+\subsubsection{Separate Landmarks}
+To show that the covariance is important, we could do one more experiment, that is ignore the covariance between the 
+landmarks. We view the landmarks as completely independent points, and only consider the covariance when updating the
+pose. The setting leads to Fig.\ref{fig:independent}. The trajectories do not change much compared to the original ones.
+Therefore, we could draw the conclusion that the covariance is a key factor when updating the pose and the map.
+
+\begin{figure}[htbp]
+    \centering
+    \subfigure[Dataset 03]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/03_comparison.png}
+            % \caption{}
+        \end{minipage}%
+    }%
+
+    \subfigure[Dataset 10]{
+        \begin{minipage}[t]{1\linewidth}
+            \centering
+            \includegraphics[width=2.5in]{../figs/10_comparison.png}
+            % \caption{}
+        \end{minipage}
+    }%
+    \centering
+    \caption{Independent Landmarks} \label{fig:independent}
+\end{figure}
+
+\subsubsection{Some More Trivial Discussion}
+\begin{itemize}
+    \item The results also depend on the choices of the features. For example, if we choose the first 1000 features that
+    are observed the most times, the trajectories would also change a little.
+    \item The number of the features chosen also play a part. Choosing 800 is also different from choosing 1200. The more
+    the features, the more accurate the result.
+\end{itemize}
 
 % \begin{figure}[htbp]
 %     \centering
